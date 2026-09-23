@@ -1,8 +1,11 @@
 /* ==========================================================================
-   CRYPTO TYCOON — Joxia (v2)
+   CRYPTO TYCOON — Joxia (v3)
    Trading crypto + matières premières avec courbes lisses et réalistes
-   (processus à momentum, cycles de tendance, événements de marché en rampe),
-   progression « patrimoine » (propriétés + business → revenu passif).
+   (processus à momentum, cycles de tendance, événements de marché en rampe).
+   3 onglets :
+     • Marché  — trading + portefeuille avec P&L en direct
+     • Achats  — objets de luxe (maison, montres, tableaux…) AUCUN revenu
+     • Business— entreprises à créer/nommer/gérer, revenu passif croissant
    Stack : Vanilla JS, zéro dépendance (hors Firebase pour le classement).
    ========================================================================== */
 (function () {
@@ -17,7 +20,7 @@
     const STORE_TICKS = 900;      // ticks sauvegardés dans localStorage (15 min)
     const VISIBLE = 60;           // bougies affichées sur le graphique
     const MOM_K = 0.004;          // vitesse de retour à la moyenne du momentum
-    const SAVE_KEY = 'crypto-tycoon-save-v2';
+    const SAVE_KEY = 'crypto-tycoon-save-v3';
     const FIREBASE_PATH = 'games/CRYPTO/scores';
 
     // Actifs tradables : cryptos + matières premières.
@@ -46,30 +49,38 @@
         { id: 'CAFE',   name: 'Café',           sym: 'CAFE', icon: '☕',   cat: 'matiere', color: '#b5835a', base: 2.2,     vol: 0.00009, biasMag: 0.000014, momNoise: 0.0000030, meme: false },
     ];
 
-    // Patrimoine : propriétés + business (image réelle, coût, revenu passif / s)
-    const ITEMS = [
-        // — Propriétés —
-        { id: 'smartphone', cat: 'propriete', img: 'assets/smartphone.jpg', name: 'Smartphone',        cost: 20,        income: 0.02 },
-        { id: 'velo',       cat: 'propriete', img: 'assets/velo.jpg',       name: 'Vélo électrique',   cost: 80,        income: 0.08 },
-        { id: 'moto',       cat: 'propriete', img: 'assets/moto.jpg',       name: 'Moto',              cost: 300,       income: 0.30 },
-        { id: 'voiture',    cat: 'propriete', img: 'assets/voiture.jpg',    name: 'Voiture citadine',  cost: 1500,      income: 1.5 },
-        { id: 'suv',        cat: 'propriete', img: 'assets/suv.jpg',        name: 'SUV',               cost: 8000,      income: 8 },
-        { id: 'appart',     cat: 'propriete', img: 'assets/appart.jpg',     name: 'Appartement',       cost: 30000,     income: 30 },
-        { id: 'sport',      cat: 'propriete', img: 'assets/sport.jpg',      name: 'Voiture de sport',  cost: 120000,    income: 120 },
-        { id: 'maison',     cat: 'propriete', img: 'assets/maison.jpg',     name: 'Maison',            cost: 350000,    income: 350 },
-        { id: 'villa',      cat: 'propriete', img: 'assets/villa.jpg',      name: 'Villa',             cost: 1000000,   income: 1000 },
-        { id: 'helico',     cat: 'propriete', img: 'assets/helico.jpg',     name: 'Hélicoptère',       cost: 2500000,   income: 2500 },
-        { id: 'manoir',     cat: 'propriete', img: 'assets/manoir.jpg',     name: 'Manoir',            cost: 8000000,   income: 8000 },
-        { id: 'yacht',      cat: 'propriete', img: 'assets/yacht.jpg',      name: 'Yacht',             cost: 20000000,  income: 20000 },
-        // — Business —
-        { id: 'limonade',   cat: 'business',  img: 'assets/limonade.jpg',   name: 'Stand de limonade', cost: 30,        income: 0.05 },
-        { id: 'foodtruck',  cat: 'business',  img: 'assets/foodtruck.jpg',  name: 'Food truck',        cost: 800,       income: 0.9 },
-        { id: 'laverie',    cat: 'business',  img: 'assets/laverie.jpg',    name: 'Laverie',           cost: 5000,      income: 5 },
-        { id: 'pizzeria',   cat: 'business',  img: 'assets/pizzeria.jpg',   name: 'Pizzeria',          cost: 25000,     income: 28 },
-        { id: 'boutique',   cat: 'business',  img: 'assets/boutique.jpg',   name: 'Boutique en ligne', cost: 80000,     income: 90 },
-        { id: 'club',       cat: 'business',  img: 'assets/club.jpg',       name: 'Boîte de nuit',     cost: 250000,    income: 280 },
-        { id: 'startup',    cat: 'business',  img: 'assets/startup.jpg',    name: 'Startup tech',      cost: 1000000,   income: 1100 },
-        { id: 'banque',     cat: 'business',  img: 'assets/banque.jpg',     name: 'Banque',            cost: 30000000,  income: 33000 },
+    // Objets de luxe : AUCUN revenu (pur prestige / progression).
+    const LUXURY = [
+        { id: 'smartphone', name: 'Smartphone',        img: 'assets/smartphone.jpg', cost: 20,        cat: 'Tech' },
+        { id: 'velo',       name: 'Vélo électrique',   img: 'assets/velo.jpg',       cost: 80,        cat: 'Véhicule' },
+        { id: 'moto',       name: 'Moto',              img: 'assets/moto.jpg',       cost: 300,       cat: 'Véhicule' },
+        { id: 'montre',     name: 'Montre de luxe',    img: 'assets/montre.jpg',     cost: 500,       cat: 'Mode' },
+        { id: 'voiture',    name: 'Voiture citadine',  img: 'assets/voiture.jpg',    cost: 1500,      cat: 'Véhicule' },
+        { id: 'vetements',  name: 'Vêtements de luxe', img: 'assets/vetements.jpg',  cost: 2000,      cat: 'Mode' },
+        { id: 'suv',        name: 'SUV',               img: 'assets/suv.jpg',        cost: 8000,      cat: 'Véhicule' },
+        { id: 'sac',        name: 'Sac de luxe',       img: 'assets/sac.jpg',        cost: 8000,      cat: 'Mode' },
+        { id: 'bijoux',     name: 'Bijoux',            img: 'assets/bijoux.jpg',     cost: 25000,     cat: 'Mode' },
+        { id: 'appart',     name: 'Appartement',       img: 'assets/appart.jpg',     cost: 30000,     cat: 'Immobilier' },
+        { id: 'sport',      name: 'Voiture de sport',  img: 'assets/sport.jpg',      cost: 120000,    cat: 'Véhicule' },
+        { id: 'maison',     name: 'Maison',            img: 'assets/maison.jpg',     cost: 350000,    cat: 'Immobilier' },
+        { id: 'tableau',    name: 'Tableau de maître', img: 'assets/tableau.jpg',    cost: 400000,    cat: 'Art' },
+        { id: 'vins',       name: 'Cave à vins',       img: 'assets/vins.jpg',       cost: 600000,    cat: 'Art' },
+        { id: 'villa',      name: 'Villa',             img: 'assets/villa.jpg',      cost: 1000000,   cat: 'Immobilier' },
+        { id: 'helico',     name: 'Hélicoptère',       img: 'assets/helico.jpg',     cost: 2500000,   cat: 'Véhicule' },
+        { id: 'manoir',     name: 'Manoir',            img: 'assets/manoir.jpg',     cost: 8000000,   cat: 'Immobilier' },
+        { id: 'yacht',      name: 'Yacht',             img: 'assets/yacht.jpg',      cost: 20000000,  cat: 'Immobilier' },
+    ];
+
+    // Types de business : revenu passif (income/s) × niveau.
+    const BUSINESS_TYPES = [
+        { id: 'limonade',  name: 'Stand de limonade', img: 'assets/limonade.jpg',  cost: 30,        income: 0.05 },
+        { id: 'foodtruck', name: 'Food truck',        img: 'assets/foodtruck.jpg', cost: 800,       income: 0.9 },
+        { id: 'laverie',   name: 'Laverie',           img: 'assets/laverie.jpg',   cost: 5000,      income: 5 },
+        { id: 'pizzeria',  name: 'Pizzeria',          img: 'assets/pizzeria.jpg',  cost: 25000,     income: 28 },
+        { id: 'boutique',  name: 'Boutique en ligne', img: 'assets/boutique.jpg',  cost: 80000,     income: 90 },
+        { id: 'club',      name: 'Boîte de nuit',     img: 'assets/club.jpg',      cost: 250000,    income: 280 },
+        { id: 'startup',   name: 'Startup tech',      img: 'assets/startup.jpg',   cost: 1000000,   income: 1100 },
+        { id: 'banque',    name: 'Banque',            img: 'assets/banque.jpg',    cost: 30000000,  income: 33000 },
     ];
 
     const RANKS = [
@@ -95,13 +106,15 @@
     ];
 
     const ASSET_MAP = {}; ASSETS.forEach(c => ASSET_MAP[c.id] = c);
-    const ITEM_MAP = {}; ITEMS.forEach(i => ITEM_MAP[i.id] = i);
+    const LUXURY_MAP = {}; LUXURY.forEach(i => LUXURY_MAP[i.id] = i);
+    const BTYPE_MAP = {}; BUSINESS_TYPES.forEach(i => BTYPE_MAP[i.id] = i);
 
     /* ================= ÉTAT ================= */
     let state = {
         cash: START_CASH,
         holdings: {},   // id -> { qty, avg }
-        owned: {},      // itemId -> true
+        luxury: {},     // itemId -> true
+        businesses: [], // [{ uid, type, name, level, invested }]
         gameTime: 0,
     };
     const coins = {};   // id -> { price, momentum, bias, nextBiasAt, volBase, ticks[] }
@@ -111,12 +124,16 @@
     let chartMode = 'candle';
     let action = 'buy';
     let assetFilter = 'all';
-    let shopFilter = 'all';
     let nextEventAt = 0;
     let hover = null;
     let lastLayout = null;
     let db = null;
     let player = 'Invité';
+
+    // Modal (création / renommage d'un business)
+    let modalMode = 'create';   // 'create' | 'rename'
+    let modalType = null;
+    let modalUid = null;
 
     const el = id => document.getElementById(id);
 
@@ -126,6 +143,11 @@
         while (u === 0) u = Math.random();
         while (v === 0) v = Math.random();
         return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+    }
+    function escapeHtml(s) {
+        return String(s).replace(/[&<>"']/g, c => (
+            { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+        ));
     }
 
     function fmtMoney(n) {
@@ -161,9 +183,7 @@
         return Math.floor(s / 86400) + 'j';
     }
     function catLabel(cat) {
-        return cat === 'crypto' ? 'Crypto'
-            : cat === 'matiere' ? 'Matière'
-            : cat === 'propriete' ? 'Propriété' : 'Business';
+        return cat === 'crypto' ? 'Crypto' : 'Matière';
     }
 
     /* ================= SIMULATION DE PRIX (lisse) ================= */
@@ -254,9 +274,12 @@
     }
     function passiveIncome() {
         let s = 0;
-        for (const id in state.owned) { const it = ITEM_MAP[id]; if (it) s += it.income; }
+        for (const b of state.businesses) s += bizIncome(b);
         return s;
     }
+    function bizIncome(b) { return BTYPE_MAP[b.type].income * b.level; }
+    function bizUpgradeCost(b) { return BTYPE_MAP[b.type].cost * b.level; }
+    function bizSellValue(b) { return Math.round(b.invested * 0.5); }
     function rankFor(nw) {
         let r = RANKS[0];
         for (const rk of RANKS) if (nw >= rk.min) r = rk;
@@ -295,18 +318,186 @@
         toast(`Vendu ${fmtQty(qty)} ${currentAsset} pour ${fmtMoney(proceeds)}`, 'good');
         afterTrade();
     }
-    function buyItem(id) {
-        const it = ITEM_MAP[id];
-        if (state.owned[id]) return;
-        if (state.cash < it.cost) return toast(`Pas assez de liquide pour « ${it.name} ».`, 'bad');
-        state.cash -= it.cost;
-        state.owned[id] = true;
-        toast(`${it.name} acheté ! +${fmtMoney(it.income)}/s`, 'good');
-        refreshShop(); refreshHeader(); save();
-    }
     function afterTrade() {
         refreshPortfolio(); refreshTradePanel(); refreshHeader(); save();
     }
+
+    /* ================= ACHATS (luxe, aucun revenu) ================= */
+    function buyLuxury(id) {
+        const it = LUXURY_MAP[id];
+        if (state.luxury[id]) return;
+        if (state.cash < it.cost) return toast(`Pas assez de liquide pour « ${it.name} ».`, 'bad');
+        state.cash -= it.cost;
+        state.luxury[id] = true;
+        toast(`🛍️ ${it.name} acheté !`, 'good');
+        refreshLuxury(); refreshHeader(); save();
+    }
+    function buildLuxury() {
+        const grid = el('luxuryGrid'); grid.innerHTML = '';
+        LUXURY.forEach(it => {
+            const card = document.createElement('div');
+            card.className = 'item-card'; card.dataset.item = it.id;
+            card.innerHTML = `<div class="item-img"><img src="${it.img}" alt="${it.name}" loading="lazy"><span class="item-cat">${it.cat}</span></div>
+                <div class="item-body">
+                    <span class="item-name">${it.name}</span>
+                    <div class="item-meta"><span class="im-cost">${fmtMoney(it.cost)}</span><span class="im-income im-none">Aucun revenu</span></div>
+                    <button class="item-buy">Acheter</button>
+                </div>`;
+            card.querySelector('.item-buy').onclick = () => buyLuxury(it.id);
+            grid.appendChild(card);
+        });
+        refreshLuxury();
+    }
+    function refreshLuxury() {
+        document.querySelectorAll('#luxuryGrid .item-card').forEach(card => {
+            const it = LUXURY_MAP[card.dataset.item];
+            const owned = !!state.luxury[it.id];
+            card.classList.toggle('owned', owned);
+            const btn = card.querySelector('.item-buy');
+            if (owned) {
+                if (!card.querySelector('.item-owned-badge')) {
+                    const b = document.createElement('span');
+                    b.className = 'item-owned-badge'; b.textContent = '✓';
+                    card.querySelector('.item-img').appendChild(b);
+                }
+                btn.textContent = 'Possédé'; btn.disabled = true;
+            } else {
+                const bd = card.querySelector('.item-owned-badge'); if (bd) bd.remove();
+                btn.textContent = 'Acheter'; btn.disabled = state.cash < it.cost;
+            }
+        });
+        const count = Object.keys(state.luxury).length;
+        const val = Object.keys(state.luxury).reduce((s, id) => s + (LUXURY_MAP[id] ? LUXURY_MAP[id].cost : 0), 0);
+        el('achatsOwned').textContent = count;
+        el('achatsValue').textContent = fmtMoney(val);
+        el('ownedCount').textContent = count;
+    }
+
+    /* ================= BUSINESS (revenu passif + gestion) ================= */
+    function createBusiness(type, name) {
+        const bt = BTYPE_MAP[type];
+        if (state.cash < bt.cost) return toast('Liquide insuffisant.', 'bad');
+        const finalName = (name || '').trim() || bt.name;
+        state.cash -= bt.cost;
+        state.businesses.push({
+            uid: 'b' + Date.now() + Math.floor(Math.random() * 1000),
+            type, name: finalName, level: 1, invested: bt.cost,
+        });
+        toast(`💼 « ${finalName} » créé ! +${fmtMoney(bt.income)}/s`, 'good');
+        refreshBusiness(); refreshHeader(); save();
+    }
+    function upgradeBusiness(uid) {
+        const b = state.businesses.find(x => x.uid === uid);
+        if (!b) return;
+        const cost = bizUpgradeCost(b);
+        if (state.cash < cost) return toast('Liquide insuffisant pour améliorer.', 'bad');
+        state.cash -= cost;
+        b.level++;
+        b.invested += cost;
+        toast(`⬆️ ${b.name} → niveau ${b.level} (+${fmtMoney(BTYPE_MAP[b.type].income)}/s)`, 'good');
+        refreshBusiness(); refreshHeader(); save();
+    }
+    function renameBusiness(uid, name) {
+        const b = state.businesses.find(x => x.uid === uid);
+        if (!b) return;
+        const finalName = (name || '').trim();
+        if (finalName) b.name = finalName;
+        toast(`✏️ Renommé en « ${b.name} »`, 'good');
+        refreshBusiness(); save();
+    }
+    function sellBusiness(uid) {
+        const b = state.businesses.find(x => x.uid === uid);
+        if (!b) return;
+        const val = bizSellValue(b);
+        state.cash += val;
+        state.businesses = state.businesses.filter(x => x.uid !== uid);
+        toast(`💰 « ${b.name} » revendu pour ${fmtMoney(val)}`, 'good');
+        refreshBusiness(); refreshHeader(); save();
+    }
+
+    function buildBizTypes() {
+        const grid = el('bizTypesGrid'); grid.innerHTML = '';
+        BUSINESS_TYPES.forEach(bt => {
+            const card = document.createElement('div');
+            card.className = 'item-card biz-type-card'; card.dataset.type = bt.id;
+            card.innerHTML = `<div class="item-img"><img src="${bt.img}" alt="${bt.name}" loading="lazy"><span class="item-cat">Business</span></div>
+                <div class="item-body">
+                    <span class="item-name">${bt.name}</span>
+                    <div class="item-meta"><span class="im-cost">${fmtMoney(bt.cost)}</span><span class="im-income">+${fmtMoney(bt.income)}/s</span></div>
+                    <button class="item-buy">Créer</button>
+                </div>`;
+            card.onclick = () => openCreateModal(bt.id);
+            grid.appendChild(card);
+        });
+    }
+    function buildMyBiz() {
+        const grid = el('myBizGrid'); grid.innerHTML = '';
+        state.businesses.forEach(b => {
+            const bt = BTYPE_MAP[b.type];
+            const card = document.createElement('div');
+            card.className = 'item-card biz-card'; card.dataset.uid = b.uid;
+            card.innerHTML = `<div class="item-img"><img src="${bt.img}" alt="${escapeHtml(b.name)}" loading="lazy"><span class="item-cat">Business</span></div>
+                <div class="item-body">
+                    <span class="item-name">${escapeHtml(b.name)}</span>
+                    <span class="biz-type-name">${bt.name}</span>
+                    <span class="biz-level">Niveau ${b.level}</span>
+                    <div class="item-meta"><span class="im-income">+${fmtMoney(bizIncome(b))}/s</span></div>
+                    <div class="biz-actions">
+                        <button class="biz-btn up" data-act="up">⬆️ Améliorer (${fmtMoney(bizUpgradeCost(b))})</button>
+                        <button class="biz-btn" data-act="rename">✏️ Renommer</button>
+                        <button class="biz-btn sell full" data-act="sell">💰 Revendre (${fmtMoney(bizSellValue(b))})</button>
+                    </div>
+                </div>`;
+            const upBtn = card.querySelector('[data-act="up"]');
+            upBtn.disabled = state.cash < bizUpgradeCost(b);
+            upBtn.onclick = () => upgradeBusiness(b.uid);
+            card.querySelector('[data-act="rename"]').onclick = () => openRenameModal(b.uid);
+            card.querySelector('[data-act="sell"]').onclick = () => sellBusiness(b.uid);
+            grid.appendChild(card);
+        });
+    }
+    function refreshBusiness() {
+        buildMyBiz();
+        el('myBizEmpty').style.display = state.businesses.length ? 'none' : 'block';
+        el('bizIncome').textContent = fmtMoney(passiveIncome()) + '/s';
+        el('bizCount').textContent = state.businesses.length;
+        el('businessCount').textContent = state.businesses.length;
+        el('income').textContent = fmtMoney(passiveIncome()) + '/s';
+    }
+
+    /* ================= MODAL (création / renommage) ================= */
+    function openCreateModal(type) {
+        modalMode = 'create'; modalType = type; modalUid = null;
+        const bt = BTYPE_MAP[type];
+        el('bizModalImg').src = bt.img;
+        el('bizModalTitle').textContent = 'Créer un business';
+        el('bizModalDesc').textContent = `${bt.name} — démarre à ${fmtMoney(bt.income)}/s. Donne un nom à ton entreprise !`;
+        el('bizModalCost').textContent = fmtMoney(bt.cost);
+        el('bizModalIncome').textContent = fmtMoney(bt.income);
+        el('bizNameInput').value = '';
+        el('bizNameInput').placeholder = bt.name;
+        el('bizModalConfirm').textContent = 'Créer';
+        el('bizModalConfirm').disabled = state.cash < bt.cost;
+        el('bizModal').classList.add('show');
+        el('bizNameInput').focus();
+    }
+    function openRenameModal(uid) {
+        const b = state.businesses.find(x => x.uid === uid);
+        if (!b) return;
+        modalMode = 'rename'; modalType = b.type; modalUid = uid;
+        const bt = BTYPE_MAP[b.type];
+        el('bizModalImg').src = bt.img;
+        el('bizModalTitle').textContent = 'Renommer le business';
+        el('bizModalDesc').textContent = `${bt.name} — niveau ${b.level}, ${fmtMoney(bizIncome(b))}/s.`;
+        el('bizModalCost').textContent = fmtMoney(bizUpgradeCost(b));
+        el('bizModalIncome').textContent = fmtMoney(bizIncome(b));
+        el('bizNameInput').value = b.name;
+        el('bizModalConfirm').textContent = 'Renommer';
+        el('bizModalConfirm').disabled = false;
+        el('bizModal').classList.add('show');
+        el('bizNameInput').focus();
+    }
+    function closeModal() { el('bizModal').classList.remove('show'); }
 
     /* ================= RENDU ================= */
     function refreshHeader() {
@@ -369,6 +560,7 @@
         const h = state.holdings[currentAsset];
         el('tradeHoldings').textContent = h ? fmtQty(h.qty) + ' ' + co.sym : '0';
         updateEstimate();
+        refreshPosition();
     }
     function updateEstimate() {
         const co = ASSET_MAP[currentAsset], c = coins[currentAsset];
@@ -380,6 +572,25 @@
             const maxVal = h ? h.qty * c.price : 0;
             el('estimateText').textContent = amt > 0 ? `≈ ${fmtMoney(Math.min(amt, maxVal))}` : '≈ 0';
         }
+    }
+    // P&L en direct de la position courante : si tu vends maintenant,
+    // tu es en bénéfice ou en perte ?
+    function refreshPosition() {
+        const box = el('tpPosition');
+        const co = ASSET_MAP[currentAsset];
+        const h = state.holdings[currentAsset];
+        if (!h || h.qty <= 0) {
+            box.innerHTML = `<span class="pos-line">Aucune position sur <b>${co.sym}</b> — achète pour suivre ton P&L en direct.</span>`;
+            return;
+        }
+        const c = coins[currentAsset];
+        const value = h.qty * c.price;
+        const cost = h.qty * h.avg;
+        const pl = value - cost;
+        const plPct = h.avg ? (c.price - h.avg) / h.avg : 0;
+        const up = pl > 0, down = pl < 0;
+        box.innerHTML = `<span class="pos-line">📌 <b>${co.sym}</b> : ${fmtQty(h.qty)} · moy. ${fmtPrice(h.avg)} · valeur ${fmtMoney(value)}</span>
+            <span class="pos-pl ${up ? 'up' : (down ? 'down' : 'flat')}">${up ? '▲ Bénéfice' : (down ? '▼ Perte' : '≈ Équilibre')} si tu vends : ${fmtMoney(pl)} (${fmtPct(plPct)})</span>`;
     }
     function setAction(a) {
         action = a;
@@ -393,7 +604,11 @@
     function refreshPortfolio() {
         const body = el('portfolioBody'), empty = el('portfolioEmpty');
         const ids = Object.keys(state.holdings);
-        if (!ids.length) { body.innerHTML = ''; empty.style.display = 'block'; return; }
+        if (!ids.length) {
+            body.innerHTML = ''; empty.style.display = 'block';
+            el('portfolioTotal').textContent = ''; el('portfolioTotal').className = 'port-total flat';
+            return;
+        }
         empty.style.display = 'none';
         body.innerHTML = ids.map(id => {
             const h = state.holdings[id], c = coins[id], co = ASSET_MAP[id];
@@ -409,46 +624,22 @@
                 <td class="num ${cls}">${fmtMoney(pl)} (${fmtPct(plPct)})</td>
             </tr>`;
         }).join('');
+        refreshPortfolioTotal();
     }
-
-    function buildShop() {
-        const grid = el('shopGrid'); grid.innerHTML = '';
-        ITEMS.forEach(it => {
-            const card = document.createElement('div');
-            card.className = 'item-card'; card.dataset.item = it.id;
-            card.innerHTML = `<div class="item-img"><img src="${it.img}" alt="${it.name}" loading="lazy"><span class="item-cat">${catLabel(it.cat)}</span></div>
-                <div class="item-body">
-                    <span class="item-name">${it.name}</span>
-                    <div class="item-meta"><span class="im-cost">${fmtMoney(it.cost)}</span><span class="im-income">+${fmtMoney(it.income)}/s</span></div>
-                    <button class="item-buy">Acheter</button>
-                </div>`;
-            card.querySelector('.item-buy').onclick = () => buyItem(it.id);
-            grid.appendChild(card);
-        });
-        refreshShop();
-    }
-    function refreshShop() {
-        document.querySelectorAll('.item-card').forEach(card => {
-            const it = ITEM_MAP[card.dataset.item];
-            const owned = !!state.owned[it.id];
-            card.style.display = (shopFilter === 'all' || it.cat === shopFilter) ? '' : 'none';
-            card.classList.toggle('owned', owned);
-            const btn = card.querySelector('.item-buy');
-            if (owned) {
-                if (!card.querySelector('.item-owned-badge')) {
-                    const b = document.createElement('span');
-                    b.className = 'item-owned-badge'; b.textContent = '✓';
-                    card.querySelector('.item-img').appendChild(b);
-                }
-                btn.textContent = 'Possédé'; btn.disabled = true;
-            } else {
-                const bd = card.querySelector('.item-owned-badge'); if (bd) bd.remove();
-                btn.textContent = 'Acheter'; btn.disabled = state.cash < it.cost;
-            }
-        });
-        el('lsIncome').textContent = fmtMoney(passiveIncome()) + '/s';
-        el('lsOwned').textContent = Object.keys(state.owned).length;
-        el('ownedCount').textContent = Object.keys(state.owned).length;
+    function refreshPortfolioTotal() {
+        const ids = Object.keys(state.holdings);
+        const box = el('portfolioTotal');
+        if (!ids.length) { box.textContent = ''; box.className = 'port-total flat'; return; }
+        let cost = 0, value = 0;
+        for (const id of ids) {
+            const h = state.holdings[id];
+            cost += h.qty * h.avg;
+            value += h.qty * coins[id].price;
+        }
+        const pl = value - cost;
+        const pct = cost ? pl / cost : 0;
+        box.textContent = `P&L total : ${fmtMoney(pl)} (${fmtPct(pct)})`;
+        box.className = 'port-total ' + (pl > 0 ? 'up' : (pl < 0 ? 'down' : 'flat'));
     }
 
     /* ================= GRAPHIQUE (canvas) ================= */
@@ -587,7 +778,11 @@
     /* ================= SAUVEGARDE ================= */
     function save() {
         try {
-            const data = { cash: state.cash, holdings: state.holdings, owned: state.owned, gameTime: state.gameTime, coins: {} };
+            const data = {
+                cash: state.cash, holdings: state.holdings,
+                luxury: state.luxury, businesses: state.businesses,
+                gameTime: state.gameTime, coins: {},
+            };
             for (const id in coins) {
                 const c = coins[id];
                 data.coins[id] = { price: c.price, momentum: c.momentum, bias: c.bias, nextBiasAt: c.nextBiasAt, ticks: c.ticks.slice(-STORE_TICKS) };
@@ -600,7 +795,9 @@
             const raw = localStorage.getItem(SAVE_KEY);
             if (!raw) return false;
             const d = JSON.parse(raw);
-            state.cash = d.cash; state.holdings = d.holdings || {}; state.owned = d.owned || {}; state.gameTime = d.gameTime || 0;
+            state.cash = d.cash; state.holdings = d.holdings || {};
+            state.luxury = d.luxury || {}; state.businesses = d.businesses || [];
+            state.gameTime = d.gameTime || 0;
             for (const id in d.coins) {
                 const c = coins[id]; if (!c) continue;
                 const s = d.coins[id];
@@ -676,13 +873,16 @@
 
         buildAssetList();
         buildTimeframes();
-        buildShop();
+        buildLuxury();
+        buildBizTypes();
 
+        // Onglets
         document.querySelectorAll('.tab').forEach(t => {
             t.onclick = () => {
                 document.querySelectorAll('.tab').forEach(x => x.classList.toggle('active', x === t));
                 document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === 'view-' + t.dataset.view));
-                if (t.dataset.view === 'lifestyle') refreshShop();
+                if (t.dataset.view === 'achats') refreshLuxury();
+                if (t.dataset.view === 'business') refreshBusiness();
             };
         });
         document.querySelectorAll('.speed-btn').forEach(b => {
@@ -706,13 +906,6 @@
                 refreshAssetList();
             };
         });
-        document.querySelectorAll('#shopFilter .cf-btn').forEach(b => {
-            b.onclick = () => {
-                shopFilter = b.dataset.cat;
-                document.querySelectorAll('#shopFilter .cf-btn').forEach(x => x.classList.toggle('active', x === b));
-                refreshShop();
-            };
-        });
         document.querySelectorAll('.action-btn').forEach(b => {
             b.onclick = () => setAction(b.dataset.action);
         });
@@ -732,10 +925,26 @@
         cv.addEventListener('mouseleave', onChartLeave);
         window.addEventListener('resize', drawChart);
 
+        // Modal
+        el('bizModalClose').onclick = closeModal;
+        el('bizModal').addEventListener('click', e => { if (e.target === el('bizModal')) closeModal(); });
+        el('bizModalConfirm').onclick = () => {
+            const name = el('bizNameInput').value.trim();
+            if (modalMode === 'create') {
+                const bt = BTYPE_MAP[modalType];
+                if (state.cash < bt.cost) return toast('Liquide insuffisant.', 'bad');
+                createBusiness(modalType, name);
+            } else {
+                renameBusiness(modalUid, name);
+            }
+            closeModal();
+        };
+
         initFirebase();
 
         setAction('buy');
         refreshHeader(); refreshAssetList(); refreshTradePanel(); refreshPortfolio();
+        refreshLuxury(); refreshBusiness();
         drawChart();
         startLoop();
 

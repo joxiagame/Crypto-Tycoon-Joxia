@@ -11,14 +11,14 @@ Jeu de trading **crypto + matières premières** avec courbes lisses et réalist
 - Firebase Realtime Database (valeur nette envoyée au classement du hub)
 
 ## Concept
-1. **Trade** — commence avec **10 €** et fais fructifier ta mise sur **15 actifs** : 8 cryptos (BTC, ETH, SOL, BNB, XRP, ADA, DOGE, PEPE) + 7 matières premières (or, pétrole, argent, cuivre, gaz naturel, blé, café). Frais de 0,1 %, timeframes 15s → 15m (défaut **30s**), vitesse ×1 → ×8.
-2. **Progresse** — plus tu gagnes, plus tu peux acheter de **propriétés** (smartphone → yacht) et de **business** (stand de limonade → banque), chacune avec une **vraie image**.
-3. **Empoche** — chaque achat rapporte un **revenu passif** (`€/s`) qui s'ajoute à ta liquidité et alimente tes trades.
+1. **Trade** — commence avec **10 €** et fais fructifier ta mise sur **15 actifs** : 8 cryptos (BTC, ETH, SOL, BNB, XRP, ADA, DOGE, PEPE) + 7 matières premières (or, pétrole, argent, cuivre, gaz naturel, blé, café). Frais de 0,1 %, timeframes 15s → 15m (défaut **30s**), vitesse ×1 → ×8. Ton **P&L s'affiche en direct** : tu vois en permanence si vendre maintenant serait un bénéfice ou une perte.
+2. **Achats** — des **objets de luxe** (montres, vêtements, sacs, bijoux, tableaux, voitures, maisons, villa, yacht…) avec de **vraies images** IA. Ces achats **ne rapportent aucun revenu** : c'est du prestige pur.
+3. **Business** — crée et **nomme** tes entreprises (stand de limonade → banque), améliore leur **niveau**, renomme-les ou revends-les. Chaque business rapporte un **revenu passif** (`€/s`) qui grandit à chaque amélioration.
 4. **Grimpe** — ta valeur nette détermine ton rang, de 💼 Débutant à 🌕 Crypto King.
 
 ## Structure
 - `index.html` / `style.css` / `script.js` — le jeu (vanilla)
-- `assets/*.jpg` — 20 images 512×512 (propriétés + business), générées par IA locale
+- `assets/*.jpg` — 26 images 512×512 (18 objets de luxe + 8 business), générées par IA locale
 
 ## Contrôles
 - Filtrer les actifs (Tout / Crypto / Matières), sélectionner un actif, choisir un timeframe, acheter/vendre (montant en €, boutons 25/50/75/Max).

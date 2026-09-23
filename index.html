@@ -48,7 +48,8 @@
     <!-- ===== ONGLETS ===== -->
     <nav class="tabs">
         <button class="tab active" data-view="market">📈 Marché</button>
-        <button class="tab" data-view="lifestyle">🏠 Patrimoine <span class="tab-badge" id="ownedCount">0</span></button>
+        <button class="tab" data-view="achats">🛍️ Achats <span class="tab-badge" id="ownedCount">0</span></button>
+        <button class="tab" data-view="business">💼 Business <span class="tab-badge" id="businessCount">0</span></button>
     </nav>
 
     <main>
@@ -56,7 +57,6 @@
         <section id="view-market" class="view active">
 
             <div class="market-layout">
-                <!-- Liste des actifs -->
                 <aside class="assets-side">
                     <div class="cat-filter" id="assetFilter">
                         <button class="cf-btn active" data-cat="all">Tout</button>
@@ -66,7 +66,6 @@
                     <div class="asset-list" id="assetList"></div>
                 </aside>
 
-                <!-- Graphique + trading -->
                 <div class="market-main">
                     <div class="chart-panel">
                         <div class="chart-meta">
@@ -90,6 +89,7 @@
                     </div>
 
                     <div class="trade-panel">
+                        <div class="tp-position" id="tpPosition"></div>
                         <div class="tp-stats">
                             <span class="tp-label">Prix actuel</span>
                             <b id="tradePrice">€0</b>
@@ -120,7 +120,10 @@
             </div>
 
             <div class="portfolio-panel">
-                <h2 class="panel-title">💼 Portefeuille</h2>
+                <div class="portfolio-head">
+                    <h2 class="panel-title">💼 Portefeuille</h2>
+                    <span class="port-total" id="portfolioTotal"></span>
+                </div>
                 <div class="portfolio-scroll">
                     <table class="portfolio">
                         <thead>
@@ -133,26 +136,40 @@
             </div>
         </section>
 
-        <!-- ===== VUE PATRIMOINE ===== -->
-        <section id="view-lifestyle" class="view">
+        <!-- ===== VUE ACHATS (objets de luxe, aucun revenu) ===== -->
+        <section id="view-achats" class="view">
             <div class="lifestyle-head">
                 <div>
-                    <h1 class="ls-title">🏠 Ton patrimoine</h1>
-                    <p class="ls-sub">Plus tu gagnes d'argent, plus tu peux t'offrir de belles choses. Chaque achat rapporte un <b>revenu passif</b>.</p>
+                    <h1 class="ls-title">🛍️ Tes achats</h1>
+                    <p class="ls-sub">Maisons, voitures, montres, tableaux, vêtements de luxe… Ces objets <b>ne rapportent rien</b>, mais ils montrent ta réussite.</p>
                 </div>
                 <div class="ls-summary">
-                    <div class="ls-box"><span>Revenu passif</span><b id="lsIncome">€0/s</b></div>
-                    <div class="ls-box"><span>Actifs possédés</span><b id="lsOwned">0</b></div>
+                    <div class="ls-box"><span>Objets possédés</span><b id="achatsOwned">0</b></div>
+                    <div class="ls-box"><span>Valeur possédée</span><b id="achatsValue">€0</b></div>
+                </div>
+            </div>
+            <div class="shop-grid" id="luxuryGrid"></div>
+        </section>
+
+        <!-- ===== VUE BUSINESS (revenu passif + gestion) ===== -->
+        <section id="view-business" class="view">
+            <div class="lifestyle-head">
+                <div>
+                    <h1 class="ls-title">💼 Tes business</h1>
+                    <p class="ls-sub">Crée, nomme et gère tes entreprises : chacune te rapporte un <b>revenu passif</b> qui grandit à chaque amélioration.</p>
+                </div>
+                <div class="ls-summary">
+                    <div class="ls-box"><span>Revenu passif</span><b id="bizIncome">€0/s</b></div>
+                    <div class="ls-box"><span>Business</span><b id="bizCount">0</b></div>
                 </div>
             </div>
 
-            <div class="cat-filter shop-filter" id="shopFilter">
-                <button class="cf-btn active" data-cat="all">Tout</button>
-                <button class="cf-btn" data-cat="propriete">🏠 Propriétés</button>
-                <button class="cf-btn" data-cat="business">💼 Business</button>
-            </div>
+            <h2 class="section-sub">➕ Créer un business</h2>
+            <div class="shop-grid biz-types" id="bizTypesGrid"></div>
 
-            <div class="shop-grid" id="shopGrid"></div>
+            <h2 class="section-sub">📋 Mes business</h2>
+            <div id="myBizEmpty" class="portfolio-empty">Aucun business pour l'instant. Crée le premier ci-dessus ! 🚀</div>
+            <div class="shop-grid" id="myBizGrid"></div>
         </section>
     </main>
 
@@ -163,6 +180,23 @@
     </footer>
 
     <div class="toast" id="toast"></div>
+
+    <!-- ===== MODAL CRÉATION / RENOMMAGE BUSINESS ===== -->
+    <div class="modal-overlay" id="bizModal">
+        <div class="biz-modal">
+            <button class="bm-close" id="bizModalClose">×</button>
+            <div class="bm-img"><img id="bizModalImg" src="" alt=""></div>
+            <h3 id="bizModalTitle">Créer un business</h3>
+            <p class="bm-desc" id="bizModalDesc"></p>
+            <label class="bm-label">Nom du business</label>
+            <input type="text" id="bizNameInput" maxlength="28" placeholder="Ex : Ma Pizzeria">
+            <div class="bm-stats">
+                <span>Coût : <b id="bizModalCost"></b></span>
+                <span>Revenu : <b id="bizModalIncome"></b>/s</span>
+            </div>
+            <button class="bm-confirm" id="bizModalConfirm">Créer</button>
+        </div>
+    </div>
 
     <!-- Firebase (classement hub) -->
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>

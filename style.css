@@ -329,3 +329,89 @@ main{max-width:1320px;margin:0 auto;padding:0 4%;}
     .tp-stats{flex-direction:row;gap:12px;}
     .trade-btn{width:100%;}
 }
+
+/* ============ Position P&L (trade) ============ */
+.tp-position{
+    flex-basis:100%;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;
+    padding:9px 12px;border-radius:10px;background:var(--bg-2);border:1px solid var(--line);
+    font-family:var(--mono);font-size:.78rem;
+}
+.pos-line{color:var(--muted);display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+.pos-line b{color:var(--text);}
+.pos-pl{font-weight:800;padding:3px 9px;border-radius:7px;white-space:nowrap;}
+.pos-pl.up{color:var(--green);background:var(--green-soft);}
+.pos-pl.down{color:var(--red);background:var(--red-soft);}
+.pos-pl.flat{color:var(--muted);background:var(--bg-2);}
+
+/* ---------- Portefeuille : total P&L ---------- */
+.portfolio-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;}
+.port-total{font-family:var(--mono);font-size:.82rem;font-weight:800;padding:4px 10px;border-radius:8px;}
+.port-total.up{color:var(--green);background:var(--green-soft);}
+.port-total.down{color:var(--red);background:var(--red-soft);}
+.port-total.flat{color:var(--muted);background:var(--bg-2);}
+
+/* ---------- Sous-titres de section ---------- */
+.section-sub{font-size:.85rem;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin:22px 0 10px;}
+
+/* ---------- Business ---------- */
+.im-none{color:var(--muted);}
+.biz-type-card{cursor:pointer;}
+.biz-type-card .item-buy{pointer-events:none;}
+.biz-card .item-name{font-weight:800;font-size:1rem;}
+.biz-card .biz-type-name{font-size:.72rem;color:var(--muted);}
+.biz-level{
+    display:inline-flex;align-items:center;gap:4px;font-size:.72rem;font-weight:800;color:var(--gold);
+    background:rgba(246,183,60,.12);border:1px solid rgba(246,183,60,.35);padding:2px 8px;border-radius:6px;width:fit-content;
+}
+.biz-actions{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:auto;}
+.biz-actions .full{grid-column:1/-1;}
+.biz-btn{
+    padding:8px;border-radius:9px;font-weight:800;font-size:.76rem;transition:.15s;
+    background:var(--bg-2);border:1px solid var(--line);color:var(--text);
+}
+.biz-btn:hover{border-color:var(--line-2);}
+.biz-btn.up{background:var(--accent);color:#1a1206;border:none;}
+.biz-btn.up:disabled{background:var(--bg-2);color:var(--muted-2);border:1px solid var(--line);cursor:not-allowed;}
+.biz-btn.sell{color:var(--red);}
+.biz-btn.sell:hover{border-color:var(--red);}
+
+/* ---------- Modal ---------- */
+.modal-overlay{
+    position:fixed;inset:0;z-index:300;display:none;align-items:center;justify-content:center;
+    background:rgba(6,9,14,.72);backdrop-filter:blur(6px);padding:20px;
+}
+.modal-overlay.show{display:flex;}
+.biz-modal{
+    position:relative;width:100%;max-width:380px;background:var(--card);border:1px solid var(--line-2);
+    border-radius:18px;padding:20px;box-shadow:var(--shadow);animation:fade .2s ease;
+}
+.bm-close{
+    position:absolute;top:12px;right:12px;width:30px;height:30px;border-radius:50%;
+    background:var(--bg-2);border:1px solid var(--line);color:var(--muted);font-size:1.1rem;line-height:1;
+}
+.bm-close:hover{color:var(--text);}
+.bm-img{aspect-ratio:16/9;border-radius:12px;overflow:hidden;margin-bottom:14px;background:var(--bg-2);}
+.bm-img img{width:100%;height:100%;object-fit:cover;display:block;}
+.biz-modal h3{font-size:1.15rem;font-weight:900;margin-bottom:4px;}
+.bm-desc{font-size:.82rem;color:var(--muted);margin-bottom:14px;line-height:1.45;}
+.bm-label{display:block;font-size:.66rem;text-transform:uppercase;letter-spacing:.5px;color:var(--muted-2);font-weight:700;margin-bottom:6px;}
+#bizNameInput{
+    width:100%;padding:12px 13px;border-radius:11px;border:1.5px solid var(--line);
+    background:var(--bg-2);color:var(--text);font-size:.98rem;font-weight:700;outline:none;margin-bottom:12px;
+}
+#bizNameInput:focus{border-color:var(--gold);}
+.bm-stats{display:flex;justify-content:space-between;gap:10px;margin-bottom:16px;font-size:.82rem;color:var(--muted);}
+.bm-stats b{color:var(--text);font-size:.9rem;}
+.bm-stats span:last-child b{color:var(--green);}
+.bm-confirm{
+    width:100%;padding:13px;border-radius:12px;font-weight:900;font-size:.95rem;letter-spacing:.3px;
+    background:var(--accent);color:#1a1206;transition:.15s;
+}
+.bm-confirm:hover{filter:brightness(1.08);}
+.bm-confirm:disabled{background:var(--bg-2);color:var(--muted-2);cursor:not-allowed;}
+
+/* ---------- Responsive ajouts ---------- */
+@media (max-width:640px){
+    .tp-position{flex-direction:column;align-items:flex-start;}
+    .biz-actions{grid-template-columns:1fr;}
+}
