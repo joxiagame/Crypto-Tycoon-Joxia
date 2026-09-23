@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Crypto Tycoon — Joxia</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📈</text></svg>">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <!-- ===== BARRE DU HAUT ===== -->
+    <header class="topbar">
+        <div class="brand" title="Crypto Tycoon">
+            <span class="brand-logo">₿</span>
+            <span class="brand-name">CRYPTO<span>TYCOON</span></span>
+        </div>
+
+        <div class="top-stat player">
+            <span class="t-label">Joueur</span>
+            <b id="playerName">Invité</b>
+        </div>
+        <div class="top-stat networth">
+            <span class="t-label">Valeur nette</span>
+            <b id="netWorth">$0</b>
+        </div>
+        <div class="top-stat cash">
+            <span class="t-label">Liquide</span>
+            <b id="cash">$0</b>
+        </div>
+        <div class="top-stat income">
+            <span class="t-label">Revenu passif</span>
+            <b id="income">$0/s</b>
+        </div>
+        <div class="top-rank" id="rankBadge">💼 Débutant</div>
+
+        <div class="speed-group" role="group" aria-label="Vitesse de simulation">
+            <button class="speed-btn active" data-speed="1">1×</button>
+            <button class="speed-btn" data-speed="2">2×</button>
+            <button class="speed-btn" data-speed="4">4×</button>
+            <button class="speed-btn" data-speed="8">8×</button>
+        </div>
+    </header>
+
+    <!-- ===== ONGLETS ===== -->
+    <nav class="tabs">
+        <button class="tab active" data-view="market">📈 Marché</button>
+        <button class="tab" data-view="lifestyle">🏠 Propriétés <span class="tab-badge" id="ownedCount">0</span></button>
+    </nav>
+
+    <main>
+        <!-- ===== VUE MARCHÉ ===== -->
+        <section id="view-market" class="view active">
+
+            <div class="market-head">
+                <div class="coin-tabs" id="coinTabs"></div>
+                <div class="chart-controls">
+                    <div class="timeframes" id="timeframes"></div>
+                    <div class="modes" id="chartModes">
+                        <button class="mode-btn active" data-mode="candle" title="Graphique en bougies">🕯️</button>
+                        <button class="mode-btn" data-mode="line" title="Graphique en ligne">📈</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid">
+                <div class="chart-panel">
+                    <div class="chart-meta">
+                        <div class="price-block">
+                            <div class="coin-sym" id="chartCoinName">Bitcoin</div>
+                            <div class="price-big" id="priceBig">$0</div>
+                            <div class="price-change" id="changePct">0.00%</div>
+                        </div>
+                        <div class="chart-legend">
+                            <span class="lg"><i class="dot up"></i> Hausse</span>
+                            <span class="lg"><i class="dot down"></i> Baisse</span>
+                        </div>
+                    </div>
+                    <div class="canvas-wrap">
+                        <canvas id="chart"></canvas>
+                        <div class="chart-tip" id="chartTip"></div>
+                    </div>
+                </div>
+
+                <aside class="trade-panel">
+                    <h2 class="panel-title">Trader <span id="tradeCoinSym">BTC</span></h2>
+                    <div class="trade-row">
+                        <span>Prix actuel</span>
+                        <b id="tradePrice">$0</b>
+                    </div>
+                    <div class="trade-row">
+                        <span>Détenu</span>
+                        <b id="tradeHoldings">0</b>
+                    </div>
+
+                    <div class="action-switch">
+                        <button class="action-btn buy active" data-action="buy">Acheter</button>
+                        <button class="action-btn sell" data-action="sell">Vendre</button>
+                    </div>
+
+                    <div class="amount-row">
+                        <span class="amount-label">Montant ($)</span>
+                        <input type="number" id="amountInput" min="0" step="any" value="1000" placeholder="0">
+                    </div>
+                    <div class="quick-row">
+                        <button class="quick" data-pct="25">25%</button>
+                        <button class="quick" data-pct="50">50%</button>
+                        <button class="quick" data-pct="75">75%</button>
+                        <button class="quick" data-pct="100">Max</button>
+                    </div>
+
+                    <div class="estimate">
+                        <span id="estimateText">≈ 0.000 BTC</span>
+                    </div>
+
+                    <button class="trade-btn" id="tradeBtn">Acheter</button>
+                    <div class="fee-note">Frais de transaction : 0.1%</div>
+                </aside>
+            </div>
+
+            <div class="portfolio-panel">
+                <h2 class="panel-title">💼 Portefeuille</h2>
+                <div class="portfolio-scroll">
+                    <table class="portfolio">
+                        <thead>
+                            <tr><th>Actif</th><th class="num">Quantité</th><th class="num">Prix moy.</th><th class="num">Valeur</th><th class="num">P&L</th></tr>
+                        </thead>
+                        <tbody id="portfolioBody"></tbody>
+                    </table>
+                    <div class="portfolio-empty" id="portfolioEmpty">Aucune position. Achète ta première crypto ! 🚀</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ===== VUE PROPRIÉTÉS ===== -->
+        <section id="view-lifestyle" class="view">
+            <div class="lifestyle-head">
+                <div>
+                    <h1 class="ls-title">🏠 Ton patrimoine</h1>
+                    <p class="ls-sub">Plus tu gagnes d'argent, plus tu peux t'offrir de belles choses. Chaque achat rapporte un <b>revenu passif</b>.</p>
+                </div>
+                <div class="ls-summary">
+                    <div class="ls-box"><span>Revenu passif</span><b id="lsIncome">$0/s</b></div>
+                    <div class="ls-box"><span>Propriétés</span><b id="lsOwned">0</b></div>
+                </div>
+            </div>
+            <div class="shop-grid" id="shopGrid"></div>
+        </section>
+    </main>
+
+    <!-- ===== BARRE DE NEWS ===== -->
+    <footer class="newsbar">
+        <span class="news-icon" id="newsIcon">📰</span>
+        <span class="news-text" id="newsText">Bienvenue sur Crypto Tycoon — achète bas, vends haut, deviens riche !</span>
+    </footer>
+
+    <div class="toast" id="toast"></div>
+
+    <!-- Firebase (classement hub) -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
