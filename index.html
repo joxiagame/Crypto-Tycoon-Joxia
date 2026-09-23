@@ -25,15 +25,15 @@
         </div>
         <div class="top-stat networth">
             <span class="t-label">Valeur nette</span>
-            <b id="netWorth">$0</b>
+            <b id="netWorth">€0</b>
         </div>
         <div class="top-stat cash">
             <span class="t-label">Liquide</span>
-            <b id="cash">$0</b>
+            <b id="cash">€0</b>
         </div>
         <div class="top-stat income">
             <span class="t-label">Revenu passif</span>
-            <b id="income">$0/s</b>
+            <b id="income">€0/s</b>
         </div>
         <div class="top-rank" id="rankBadge">💼 Débutant</div>
 
@@ -48,77 +48,75 @@
     <!-- ===== ONGLETS ===== -->
     <nav class="tabs">
         <button class="tab active" data-view="market">📈 Marché</button>
-        <button class="tab" data-view="lifestyle">🏠 Propriétés <span class="tab-badge" id="ownedCount">0</span></button>
+        <button class="tab" data-view="lifestyle">🏠 Patrimoine <span class="tab-badge" id="ownedCount">0</span></button>
     </nav>
 
     <main>
         <!-- ===== VUE MARCHÉ ===== -->
         <section id="view-market" class="view active">
 
-            <div class="market-head">
-                <div class="coin-tabs" id="coinTabs"></div>
-                <div class="chart-controls">
-                    <div class="timeframes" id="timeframes"></div>
-                    <div class="modes" id="chartModes">
-                        <button class="mode-btn active" data-mode="candle" title="Graphique en bougies">🕯️</button>
-                        <button class="mode-btn" data-mode="line" title="Graphique en ligne">📈</button>
+            <div class="market-layout">
+                <!-- Liste des actifs -->
+                <aside class="assets-side">
+                    <div class="cat-filter" id="assetFilter">
+                        <button class="cf-btn active" data-cat="all">Tout</button>
+                        <button class="cf-btn" data-cat="crypto">Crypto</button>
+                        <button class="cf-btn" data-cat="matiere">Matières</button>
                     </div>
-                </div>
-            </div>
-
-            <div class="grid">
-                <div class="chart-panel">
-                    <div class="chart-meta">
-                        <div class="price-block">
-                            <div class="coin-sym" id="chartCoinName">Bitcoin</div>
-                            <div class="price-big" id="priceBig">$0</div>
-                            <div class="price-change" id="changePct">0.00%</div>
-                        </div>
-                        <div class="chart-legend">
-                            <span class="lg"><i class="dot up"></i> Hausse</span>
-                            <span class="lg"><i class="dot down"></i> Baisse</span>
-                        </div>
-                    </div>
-                    <div class="canvas-wrap">
-                        <canvas id="chart"></canvas>
-                        <div class="chart-tip" id="chartTip"></div>
-                    </div>
-                </div>
-
-                <aside class="trade-panel">
-                    <h2 class="panel-title">Trader <span id="tradeCoinSym">BTC</span></h2>
-                    <div class="trade-row">
-                        <span>Prix actuel</span>
-                        <b id="tradePrice">$0</b>
-                    </div>
-                    <div class="trade-row">
-                        <span>Détenu</span>
-                        <b id="tradeHoldings">0</b>
-                    </div>
-
-                    <div class="action-switch">
-                        <button class="action-btn buy active" data-action="buy">Acheter</button>
-                        <button class="action-btn sell" data-action="sell">Vendre</button>
-                    </div>
-
-                    <div class="amount-row">
-                        <span class="amount-label">Montant ($)</span>
-                        <input type="number" id="amountInput" min="0" step="any" value="1000" placeholder="0">
-                    </div>
-                    <div class="quick-row">
-                        <button class="quick" data-pct="25">25%</button>
-                        <button class="quick" data-pct="50">50%</button>
-                        <button class="quick" data-pct="75">75%</button>
-                        <button class="quick" data-pct="100">Max</button>
-                    </div>
-
-                    <div class="estimate">
-                        <span id="estimateText">≈ 0.000 BTC</span>
-                    </div>
-
-                    <button class="trade-btn" id="tradeBtn">Acheter</button>
-                    <div class="fee-note">Frais de transaction : 0.1%</div>
+                    <div class="asset-list" id="assetList"></div>
                 </aside>
+
+                <!-- Graphique + trading -->
+                <div class="market-main">
+                    <div class="chart-panel">
+                        <div class="chart-meta">
+                            <div class="price-block">
+                                <div class="coin-sym" id="chartCoinName">Bitcoin</div>
+                                <div class="price-big" id="priceBig">€0</div>
+                                <div class="price-change" id="changePct">0.00%</div>
+                            </div>
+                            <div class="chart-controls">
+                                <div class="timeframes" id="timeframes"></div>
+                                <div class="modes" id="chartModes">
+                                    <button class="mode-btn active" data-mode="candle" title="Graphique en bougies">🕯️</button>
+                                    <button class="mode-btn" data-mode="line" title="Graphique en ligne">📈</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="canvas-wrap">
+                            <canvas id="chart"></canvas>
+                            <div class="chart-tip" id="chartTip"></div>
+                        </div>
+                    </div>
+
+                    <div class="trade-panel">
+                        <div class="tp-stats">
+                            <span class="tp-label">Prix actuel</span>
+                            <b id="tradePrice">€0</b>
+                            <span class="tp-label">Détenu</span>
+                            <b id="tradeHoldings">0</b>
+                        </div>
+                        <div class="action-switch">
+                            <button class="action-btn buy active" data-action="buy">Acheter</button>
+                            <button class="action-btn sell" data-action="sell">Vendre</button>
+                        </div>
+                        <div class="amount-box">
+                            <span class="amount-label">Montant (€)</span>
+                            <div class="amount-line">
+                                <input type="number" id="amountInput" min="0" step="any" value="10" placeholder="0">
+                                <div class="quick-row">
+                                    <button class="quick" data-pct="25">25%</button>
+                                    <button class="quick" data-pct="50">50%</button>
+                                    <button class="quick" data-pct="75">75%</button>
+                                    <button class="quick" data-pct="100">Max</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="estimate" id="estimateText">≈ 0</div>
+                        <button class="trade-btn" id="tradeBtn">Acheter</button>
+                        <div class="fee-note">Frais : 0,1 %</div>
+                    </div>
+                </div>
             </div>
 
             <div class="portfolio-panel">
@@ -130,12 +128,12 @@
                         </thead>
                         <tbody id="portfolioBody"></tbody>
                     </table>
-                    <div class="portfolio-empty" id="portfolioEmpty">Aucune position. Achète ta première crypto ! 🚀</div>
+                    <div class="portfolio-empty" id="portfolioEmpty">Aucune position. Achète ton premier actif ! 🚀</div>
                 </div>
             </div>
         </section>
 
-        <!-- ===== VUE PROPRIÉTÉS ===== -->
+        <!-- ===== VUE PATRIMOINE ===== -->
         <section id="view-lifestyle" class="view">
             <div class="lifestyle-head">
                 <div>
@@ -143,10 +141,17 @@
                     <p class="ls-sub">Plus tu gagnes d'argent, plus tu peux t'offrir de belles choses. Chaque achat rapporte un <b>revenu passif</b>.</p>
                 </div>
                 <div class="ls-summary">
-                    <div class="ls-box"><span>Revenu passif</span><b id="lsIncome">$0/s</b></div>
-                    <div class="ls-box"><span>Propriétés</span><b id="lsOwned">0</b></div>
+                    <div class="ls-box"><span>Revenu passif</span><b id="lsIncome">€0/s</b></div>
+                    <div class="ls-box"><span>Actifs possédés</span><b id="lsOwned">0</b></div>
                 </div>
             </div>
+
+            <div class="cat-filter shop-filter" id="shopFilter">
+                <button class="cf-btn active" data-cat="all">Tout</button>
+                <button class="cf-btn" data-cat="propriete">🏠 Propriétés</button>
+                <button class="cf-btn" data-cat="business">💼 Business</button>
+            </div>
+
             <div class="shop-grid" id="shopGrid"></div>
         </section>
     </main>
