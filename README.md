@@ -22,6 +22,14 @@ Jeu de trading **crypto + matières premières** avec courbes lisses et réalist
    - Valeur nette = liquide + positions + valeur de revente des business.
    - Anti-farm : un trade ne compte que s'il pèse ≥ 0,5 % de la fortune.
    - Migration : les sauvegardes v3 repartent de 10 € avec le badge 🧭 **Pionnier** (ancien rang affiché).
+5. **Lot B (v5)** — risque et long terme :
+   - **Déblocages** : SOL niv. 3, BNB niv. 4, ETH niv. 6, BTC niv. 9 ; Staking niv. 12, Minage niv. 16, Levier niv. 22, Halving niv. 30.
+   - **⛏️ Minage** (onglet Rendement) : 7 rigs (Vieux PC → Méga-ferme polaire, ×1,25 par exemplaire), hashrate contre électricité (0,35 €/s par kW, arrêt auto si plus de liquide), difficulté +1 toutes les 4 h de minage, BTC à encaisser (prix de revient = cours du moment).
+   - **🔒 Staking** : ETH, SOL, ADA, BNB, XRP bloqués 10 min / 1 h / 6 h (0,3 % / 2 % / 15 % × coefficient de la crypto), restitution automatique.
+   - **⚡ Levier** : Long / Short ×2…×10 sur la marge, liquidation à 90 % de perte de marge, frais 0,1 % de la position.
+   - **Régimes de marché** (toutes les 20-40 min de marché) : krach (annoncé 1 min avant par des rumeurs), bull run (annoncé), rug pull sur DOGE/PEPE (sans prévenir, -75 à -90 %). Les matières premières sont les valeurs refuges.
+   - **🪙 Halving** (prestige) : niveau 30 et 100 M€ de fortune dans la partie → retour à zéro contre des Satoshis (10 × √(fortune record / 100 M€)) : +2 % de revenu passif et de hashrate par Satoshi, capital de départ 10 € + 10 € par Satoshi. Niveau, rang, succès et fortune record conservés.
+   - 14 succès de plus (68 au total).
 
 ## Structure
 - `index.html` / `style.css` / `script.js` — le jeu (vanilla)

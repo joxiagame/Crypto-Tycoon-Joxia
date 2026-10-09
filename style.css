@@ -491,3 +491,51 @@ main{max-width:1320px;margin:0 auto;padding:0 4%;}
   .pl-ring{width:96px;height:96px;}
   .top-level{min-width:60px;}
 }
+
+/* ============================================================
+   LOT B : levier, rendement (staking + minage), krachs, Halving
+   ============================================================ */
+.mode-switch{display:grid;grid-template-columns:1fr 1fr;gap:4px;background:var(--bg-2);border:1px solid var(--line);border-radius:11px;padding:4px;min-width:150px;}
+.mode-tab{padding:8px 10px;border-radius:8px;font-weight:800;font-size:.82rem;color:var(--muted);}
+.mode-tab.active{background:var(--card-2);color:var(--gold);}
+.lev-box{display:flex;flex-direction:column;gap:6px;min-width:170px;}
+.lev-box[hidden],.action-switch[hidden]{display:none;}
+.lev-side{display:grid;grid-template-columns:1fr 1fr;gap:4px;background:var(--bg-2);border:1px solid var(--line);border-radius:11px;padding:4px;}
+.side-btn{padding:8px 10px;border-radius:8px;font-weight:800;font-size:.82rem;color:var(--muted);}
+.side-btn.long.active{background:var(--green-soft);color:var(--green);}
+.side-btn.short.active{background:var(--red-soft);color:var(--red);}
+.lev-x{display:flex;gap:4px;}
+.lev-chip{flex:1;padding:6px 0;border-radius:8px;background:var(--bg-2);border:1px solid var(--line);color:var(--muted);font-weight:800;font-size:.78rem;}
+.lev-chip.active{border-color:var(--orange);color:var(--gold);}
+.trade-btn:disabled{opacity:.55;cursor:not-allowed;filter:grayscale(.4);}
+.asset-row .ar-lock{display:none;}
+.asset-row.locked{opacity:.55;}
+.asset-row.locked .ar-lock{display:inline-block;margin-left:6px;font-size:.62rem;font-weight:800;color:var(--muted);white-space:nowrap;}
+.asset-row.locked .ar-right{display:none;}
+.lock-tag{font-size:.72rem;color:var(--gold);margin-left:6px;text-transform:none;letter-spacing:0;}
+.yield-card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px;display:flex;flex-direction:column;gap:12px;}
+.feature-locked{position:relative;opacity:.5;pointer-events:none;filter:grayscale(.5);}
+.stake-form{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;}
+.stake-form label{display:flex;flex-direction:column;gap:4px;font-size:.7rem;font-weight:700;color:var(--muted-2);text-transform:uppercase;letter-spacing:.5px;}
+.stake-form select{background:var(--bg-2);color:var(--text);border:1px solid var(--line-2);border-radius:9px;padding:8px 10px;font:600 .88rem 'Inter',sans-serif;min-width:120px;}
+.stake-form .bm-confirm{width:auto;padding:10px 22px;margin:0;}
+.stake-est{font-size:.85rem;color:var(--muted);}
+.stake-list{display:flex;flex-direction:column;gap:6px;}
+.stake-row{display:flex;gap:12px;justify-content:space-between;align-items:center;padding:8px 12px;border-radius:10px;background:var(--bg-2);border:1px solid var(--line);font-size:.84rem;}
+.stake-row em{font-style:normal;font-family:var(--mono);color:var(--gold);}
+.stake-empty{font-size:.82rem;color:var(--muted-2);}
+.mine-actions{display:flex;gap:8px;flex-wrap:wrap;}
+.mine-actions .biz-btn{flex:1 1 180px;}
+.rig-owned{position:absolute;right:10px;bottom:10px;background:rgba(10,14,20,.8);color:var(--gold);font:800 .8rem var(--mono);padding:3px 8px;border-radius:8px;}
+.rig-owned:empty{display:none;}
+.newsbar.warn{background:linear-gradient(90deg,rgba(246,183,60,.18),var(--bg-2));}
+.newsbar.crash{background:linear-gradient(90deg,rgba(234,57,67,.28),var(--bg-2));}
+.newsbar.bull{background:linear-gradient(90deg,rgba(22,199,132,.25),var(--bg-2));}
+.hv-main{display:flex;gap:18px;align-items:center;flex-wrap:wrap;}
+.hv-sats{width:96px;height:96px;border-radius:50%;display:grid;place-items:center;align-content:center;background:radial-gradient(circle at 30% 25%,rgba(247,147,26,.35),rgba(247,147,26,.08));border:2px solid rgba(246,183,60,.5);flex-shrink:0;}
+.hv-sats b{font-size:1.7rem;color:var(--gold);line-height:1;}
+.hv-sats span{font-size:.62rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;}
+.hv-text{display:flex;flex-direction:column;gap:5px;font-size:.86rem;color:var(--muted);flex:1;min-width:220px;}
+.hv-text b{color:var(--text);}
+.hv-req.ok{color:var(--green);}
+.halving-card .bm-confirm{margin:0;}

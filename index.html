@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=4">
+    <link rel="stylesheet" href="style.css?v=5">
 </head>
 <body>
 <a href="https://joxiagame.github.io/Joxia-Games/" id="joxia-quit" style="position:fixed;top:8px;left:8px;z-index:2147483647;display:flex;align-items:center;gap:6px;background:rgba(20,22,30,.86);color:#fff;border:1px solid rgba(255,255,255,.3);border-radius:10px;padding:7px 11px;font:700 13px system-ui,-apple-system,sans-serif;text-decoration:none;box-shadow:0 3px 12px rgba(0,0,0,.45);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)">🏠 Quitter</a>
@@ -52,6 +52,7 @@
         <button class="tab active" data-view="market">📈 Marché</button>
         <button class="tab" data-view="achats">🛍️ Achats <span class="tab-badge" id="ownedCount">0</span></button>
         <button class="tab" data-view="business">💼 Business <span class="tab-badge" id="businessCount">0</span></button>
+        <button class="tab" data-view="yield">⛏️ Rendement</button>
         <button class="tab" data-view="progress">🏆 Progression <span class="tab-badge" id="achCount">0</span></button>
     </nav>
 
@@ -99,6 +100,17 @@
                             <span class="tp-label">Détenu</span>
                             <b id="tradeHoldings">0</b>
                         </div>
+                        <div class="mode-switch" id="tradeMode" role="group" aria-label="Type de trade">
+                            <button class="mode-tab active" data-mode="spot">Spot</button>
+                            <button class="mode-tab" data-mode="lev">⚡ Levier</button>
+                        </div>
+                        <div class="lev-box" id="levBox" hidden>
+                            <div class="lev-side">
+                                <button class="side-btn long active" data-side="long">📈 Long</button>
+                                <button class="side-btn short" data-side="short">📉 Short</button>
+                            </div>
+                            <div class="lev-x" id="levX"></div>
+                        </div>
                         <div class="action-switch">
                             <button class="action-btn buy active" data-action="buy">Acheter</button>
                             <button class="action-btn sell" data-action="sell">Vendre</button>
@@ -117,7 +129,7 @@
                         </div>
                         <div class="estimate" id="estimateText">≈ 0</div>
                         <button class="trade-btn" id="tradeBtn">Acheter</button>
-                        <div class="fee-note">Frais : 0,1 %</div>
+                        <div class="fee-note" id="feeNote">Frais : 0,1 %</div>
                     </div>
                 </div>
             </div>
@@ -137,6 +149,47 @@
                     <div class="portfolio-empty" id="portfolioEmpty">Aucune position. Achète ton premier actif ! 🚀</div>
                 </div>
             </div>
+            <div class="portfolio-panel" id="levPanel" hidden>
+                <div class="portfolio-head"><h2 class="panel-title">⚡ Positions à levier</h2></div>
+                <div class="portfolio-scroll">
+                    <table class="portfolio">
+                        <thead><tr><th>Actif</th><th>Sens</th><th class="num">Marge</th><th class="num">Entrée</th><th class="num">Liquidation</th><th class="num">P&L</th><th></th></tr></thead>
+                        <tbody id="levBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- ===== VUE RENDEMENT (staking + minage) ===== -->
+        <section id="view-yield" class="view">
+            <div class="lifestyle-head">
+                <div>
+                    <h1 class="ls-title">⛏️ Rendement</h1>
+                    <p class="ls-sub">Stake tes cryptos pour toucher un rendement, ou mine du Bitcoin… tant que l'électricité ne coûte pas plus que ce que tu mines.</p>
+                </div>
+            </div>
+
+            <h2 class="section-sub">🔒 Staking <span class="lock-tag" id="stakeLock"></span></h2>
+            <div class="yield-card" id="stakeCard">
+                <div class="stake-form">
+                    <label>Crypto<select id="stakeAsset"></select></label>
+                    <label>Durée<select id="stakeTerm"></select></label>
+                    <label>Quantité<select id="stakePct"><option value="25">25 %</option><option value="50">50 %</option><option value="100" selected>100 %</option></select></label>
+                    <button class="bm-confirm" id="stakeBtn">Staker</button>
+                </div>
+                <div class="stake-est" id="stakeEst"></div>
+                <div class="stake-list" id="stakeList"></div>
+            </div>
+
+            <h2 class="section-sub">⛏️ Minage de Bitcoin <span class="lock-tag" id="mineLock"></span></h2>
+            <div class="yield-card" id="mineCard">
+                <div class="stat-grid" id="mineStats"></div>
+                <div class="mine-actions">
+                    <button class="biz-btn" id="mineToggle">⏸️ Mettre en pause</button>
+                    <button class="biz-btn up" id="mineClaim">₿ Encaisser</button>
+                </div>
+            </div>
+            <div class="shop-grid" id="rigGrid"></div>
         </section>
 
         <!-- ===== VUE ACHATS (objets de luxe, aucun revenu) ===== -->
@@ -189,6 +242,9 @@
                 <div class="prog-next" id="progNext"></div>
             </div>
 
+            <h2 class="section-sub">🪙 Halving (prestige)</h2>
+            <div class="yield-card halving-card" id="halvingCard"></div>
+
             <h2 class="section-sub">🎖️ Rangs</h2>
             <div class="rank-ladder" id="rankLadder"></div>
 
@@ -235,7 +291,7 @@
     <!-- Firebase (classement hub) -->
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
-    <script src="script.js?v=4"></script>
+    <script src="script.js?v=5"></script>
 <script type="module" src="https://joxiagame.github.io/Joxia-Games/tracker.js?game=CRYPTO"></script>
 </body>
 </html>

@@ -199,6 +199,54 @@
         { id: 'play_10h', icon: '🕰️', name: 'Vétéran',  desc: '10 h de jeu.', xp: 2500, t: (c, st) => st.playSeconds >= 36000 },
         { id: 'pioneer',  icon: '🧭', name: 'Pionnier', desc: 'A joué à la première version de Crypto Tycoon.', xp: 500, secret: true },
     ];
+    /* ===== Lot B : déblocages, minage, staking, levier, krachs, Halving ===== */
+    const UNLOCK = { stake: 12, mine: 16, lev: 22, halving: 30 };   // niveau joueur requis
+    const ASSET_LVL = { SOL: 3, BNB: 4, ETH: 6, BTC: 9 };           // les autres actifs : dès le niveau 1
+    const HALVING_MIN_NW = 1e8;                                      // fortune de la partie requise
+    const SAT_BONUS = 0.02;                                          // +2 % de revenu par Satoshi
+
+    // Minage : hashrate (TH/s) contre électricité (kW). Rentabilité ≈ 1 h au départ,
+    // puis la difficulté du réseau monte (×2 après 4 h de minage, ×3 après 8 h…).
+    const RIGS = [
+        { id: 'pc',    name: 'Vieux PC',           emoji: '🖥️', cost: 150,  hash: 3,     kw: 0.2 },
+        { id: 'gpu',   name: 'Carte graphique',    emoji: '🎮', cost: 2000, hash: 12,    kw: 0.4 },
+        { id: 'rig6',  name: 'Rig 6 GPU',          emoji: '🧰', cost: 15000, hash: 80,   kw: 1.6 },
+        { id: 's9',    name: 'ASIC S9',            emoji: '📟', cost: 1.2e5, hash: 600,  kw: 2 },
+        { id: 's19',   name: 'ASIC S19',           emoji: '⚡', cost: 1e6,  hash: 4500,  kw: 3.2 },
+        { id: 'ferme', name: 'Ferme de minage',    emoji: '🏭', cost: 2e7,  hash: 80000, kw: 60 },
+        { id: 'mega',  name: 'Méga-ferme polaire', emoji: '🧊', cost: 5e8,  hash: 1.8e6, kw: 1200 },
+    ];
+    const RIG_MAP = {}; RIGS.forEach(r => RIG_MAP[r.id] = r);
+    const RIG_GROWTH = 1.25;       // chaque rig du même modèle coûte ×1,25
+    const BTC_PER_TH = 9e-7;       // BTC/s par TH/s à difficulté 1
+    const ELEC = 0.35;             // €/s par kW
+    const DIFF_STEP = 4 * 3600;    // +1 de difficulté toutes les 4 h de minage
+
+    // Staking : coins bloqués, rendement versé dans la même crypto à l'échéance.
+    const STAKE_ASSETS = { ETH: 1.0, SOL: 1.3, ADA: 1.1, BNB: 0.9, XRP: 0.8 };
+    const STAKE_TERMS = [
+        { s: 600,   label: '10 min', rate: 0.003 },
+        { s: 3600,  label: '1 h',    rate: 0.02 },
+        { s: 21600, label: '6 h',    rate: 0.15 },
+    ];
+    const LEVERAGES = [2, 3, 5, 10];
+
+    ACHIEVEMENTS.push(
+        { id: 'stake_1',   icon: '🔒', name: 'Validateur',        desc: 'Staker pour la première fois.',                xp: 300,  t: (c, st) => st.stakes >= 1 },
+        { id: 'stake_1m',  icon: '🏛️', name: 'Gros validateur',   desc: '1 M€ en staking en même temps.',              xp: 2500, t: () => stakedValue() >= 1e6 },
+        { id: 'rig_1',     icon: '⛏️', name: 'Premier rig',       desc: 'Acheter ton premier matériel de minage.',     xp: 300,  t: () => rigCount() >= 1 },
+        { id: 'rig_farm',  icon: '🏭', name: 'Ferme de minage',   desc: 'Posséder une ferme de minage.',               xp: 4000, t: () => (state.mining.rigs.ferme || 0) >= 1 },
+        { id: 'btc_1',     icon: '₿',  name: 'Satoshi en herbe',  desc: 'Miner 1 BTC au total.',                       xp: 3000, t: (c, st) => st.minedBTC >= 1 },
+        { id: 'lev_win',   icon: '⚡', name: 'Effet de levier',   desc: 'Gagner un trade à levier.',                   xp: 500 },
+        { id: 'lev_x10',   icon: '🎰', name: 'All-in',            desc: 'Gagner un trade à levier ×10.',               xp: 1500 },
+        { id: 'liquidated', icon: '💀', name: 'Liquidé',          desc: 'Te faire liquider une position.',             xp: 200,  secret: true },
+        { id: 'crash_survivor', icon: '🧊', name: 'Sang-froid',   desc: 'Traverser un krach en perdant moins de 5 %.', xp: 1500 },
+        { id: 'short_crash', icon: '🐻', name: 'Contre le marché', desc: 'Gagner un short pendant un krach.',          xp: 2500, secret: true },
+        { id: 'rug_escape', icon: '🏃', name: 'Échappé du rug',   desc: 'Revendre un memecoin moins de 20 s après un rug pull.', xp: 1500, secret: true },
+        { id: 'halving_1', icon: '🪙', name: 'Premier Halving',   desc: 'Lancer ton premier Halving.',                 xp: 3000, t: c => c.halvings >= 1 },
+        { id: 'halving_5', icon: '♻️', name: 'Cycle maître',      desc: 'Lancer 5 Halvings.',                          xp: 10000, t: c => c.halvings >= 5 },
+        { id: 'sats_100',  icon: '🧙', name: 'Satoshi Nakamoto',  desc: 'Posséder 100 Satoshis.',                      xp: 15000, t: c => c.sats >= 100 },
+    );
     const ACH_MAP = {}; ACHIEVEMENTS.forEach(a => ACH_MAP[a.id] = a);
 
     const TIMEFRAMES = [
@@ -221,15 +269,25 @@
         businesses: [], // [{ uid, type, name, level, invested }]
         gameTime: 0,
         career: freshCareer(),
+        runPeak: START_CASH,                                  // fortune record de la partie (Halving)
+        mining: freshMining(),
+        stakes: [],   // [{ uid, id, qty, avg, reward, end }] (end en secondes de jeu réel)
+        lev: [],      // [{ uid, id, side, lev, margin, entry, qty }]
     };
+    function freshMining() { return { rigs: {}, on: true, pending: 0, secs: 0, invested: 0 }; }
     function freshCareer() {
         return {
-            xp: 0, level: 1, peakNW: START_CASH, rankIdx: 0, ach: {}, pioneer: null,
+            xp: 0, level: 1, peakNW: START_CASH, rankIdx: 0, ach: {}, pioneer: null, sats: 0, halvings: 0,
             stats: { buys: 0, sells: 0, wins: 0, losses: 0, streak: 0, bestStreak: 0, volume: 0,
-                     bizCreated: 0, bizUpgrades: 0, luxBought: 0, memeProfit: 0, playSeconds: 0 },
+                     bizCreated: 0, bizUpgrades: 0, luxBought: 0, memeProfit: 0, playSeconds: 0,
+                     stakes: 0, minedBTC: 0, levTrades: 0, liquidations: 0 },
         };
     }
     let lastNews = null;   // { id, up, t } : dernière news (succès « Sur la news »)
+    let regime = null;     // { type: 'crash'|'bull', until, startNW } : phase de marché en cours
+    let pendingRegime = null, nextRegimeAt = 900 + Math.random() * 900;
+    let lastRug = null;    // { id, t } : dernier rug pull (succès « Échappé du rug »)
+    let tradeMode = 'spot', levSide = 'long', levX = 2;
     const coins = {};   // id -> { price, momentum, bias, nextBiasAt, volBase, ticks[] }
     let currentAsset = 'BTC';
     let activeView = 'market';
@@ -283,6 +341,7 @@
     }
     function fmtQty(n) {
         const a = Math.abs(n);
+        if (a === 0)     return '0';
         if (a >= 1000)   return n.toFixed(0);
         if (a >= 1)      return n.toFixed(2);
         if (a >= 0.001)  return n.toFixed(4);
@@ -321,7 +380,9 @@
         }
         a.momentum += (a.bias - a.momentum) * MOM_K + randn() * cfg.momNoise;
         const o = a.price;
-        const price = o * Math.exp(a.momentum + cfg.vol * randn());
+        // choc de régime (krach, bull run, rug pull) : glissement continu, jamais un saut vertical
+        const shock = a.shock && t < a.shock.until ? a.shock.perSec : 0;
+        const price = o * Math.exp(a.momentum + cfg.vol * randn() + shock);
         a.price = price;
         const h = Math.max(o, price) * (1 + Math.random() * 0.0004);
         const l = Math.min(o, price) * (1 - Math.random() * 0.0004);
@@ -387,6 +448,7 @@
         let v = state.cash;
         for (const id in state.holdings) v += state.holdings[id].qty * coins[id].price;
         for (const b of state.businesses) v += bizSellValue(b);
+        v += stakedValue() + levEquityTotal() + state.mining.pending * coins.BTC.price + rigValue();
         return v;
     }
     function passiveIncome() {
@@ -396,8 +458,10 @@
     }
     // Bonus de carrière : +1 % de revenu passif par niveau au-delà du premier.
     function levelBonus() { return 1 + 0.01 * (state.career.level - 1); }
+    // Multiplicateur de revenu : niveau × Satoshis (prestige Halving)
+    function incomeMult() { return levelBonus() * (1 + SAT_BONUS * state.career.sats); }
     function milestoneMult(L) { let m = 1; for (const [l, x] of BIZ_MILESTONES) if (L >= l) m *= x; return m; }
-    function bizIncomeAt(bt, L) { return bt.income * L * milestoneMult(L) * levelBonus(); }
+    function bizIncomeAt(bt, L) { return bt.income * L * milestoneMult(L) * incomeMult(); }
     function bizIncome(b) { return bizIncomeAt(BTYPE_MAP[b.type], b.level); }
     function bizUpgradeCost(b) { return BTYPE_MAP[b.type].cost * Math.pow(BIZ_UP_GROWTH, b.level); }
     function bizCreateCost(type) {
@@ -421,6 +485,7 @@
         const amt = parseFloat(el('amountInput').value) || 0;
         if (amt <= 0) return toast('Entre un montant valide.', 'bad');
         if (amt > state.cash + 1e-9) return toast('Liquide insuffisant.', 'bad');
+        if (assetLocked(currentAsset)) return toast(`🔒 ${ASSET_MAP[currentAsset].name} : débloqué au niveau ${ASSET_LVL[currentAsset]}.`, 'bad');
         const c = coins[currentAsset];
         const qty = (amt * (1 - FEE)) / c.price;
         const h = state.holdings[currentAsset] || { qty: 0, avg: 0 };
@@ -449,6 +514,7 @@
         else state.holdings[currentAsset] = { qty: newQty, avg: h.avg };
         toast(`Vendu ${fmtQty(qty)} ${currentAsset} pour ${fmtMoney(proceeds)}`, 'good');
         recordSale(currentAsset, qty * h.avg, proceeds);
+        if (lastRug && lastRug.id === currentAsset && gameTime() - lastRug.t <= 20) unlock('rug_escape');
         afterTrade();
     }
     function afterTrade() {
@@ -719,9 +785,9 @@
         while (c.level < MAX_LEVEL && c.xp >= xpForLevel(c.level)) { c.xp -= xpForLevel(c.level); c.level++; up = true; }
         if (c.level >= MAX_LEVEL) c.xp = 0;
         if (up) {
-            const unlocked = BUSINESS_TYPES.filter(bt => bt.lvl === c.level).map(bt => bt.name);
+            const unlocked = unlocksAt(c.level);
             celebrate(`⭐ Niveau ${c.level} ! Revenu passif +${c.level - 1} %` + (unlocked.length ? ` · Débloqué : ${unlocked.join(', ')}` : ''), 'level');
-            refreshBizTypes();
+            refreshBizTypes(); refreshAssetList(); refreshYield(); setAction(action);
         }
         refreshCareerHeader();
     }
@@ -825,6 +891,7 @@
         ];
         el('statGrid').innerHTML = stats.map(([k, v]) => `<div class="stat-box"><span>${k}</span><b>${v}</b></div>`).join('');
 
+        renderHalving();
         const got = Object.keys(c.ach).length;
         el('achProgress').textContent = `${got} / ${ACHIEVEMENTS.length}`;
         el('achGrid').innerHTML = ACHIEVEMENTS.filter(a => achFilter === 'all' || (achFilter === 'got') === !!c.ach[a.id]).map(a => {
@@ -843,7 +910,8 @@
             row.className = 'asset-row'; row.dataset.id = a.id;
             row.innerHTML = `<span class="ar-icon" style="background:${a.color}22;color:${a.color}">${a.icon}</span>
                 <span class="ar-main"><span class="ar-top"><span class="ar-sym">${a.sym}</span><span class="ar-tag">${catLabel(a.cat)}</span></span><span class="ar-name">${a.name}</span></span>
-                <span class="ar-right"><span class="ar-price"></span><span class="ar-chg"></span></span>`;
+                <span class="ar-right"><span class="ar-price"></span><span class="ar-chg"></span></span>
+                <span class="ar-lock">🔒 niv. ${ASSET_LVL[a.id] || 1}</span>`;
             row.onclick = () => {
                 currentAsset = a.id;
                 refreshAssetList(); refreshTradePanel(); setAction(action); drawChart();
@@ -855,6 +923,7 @@
         document.querySelectorAll('.asset-row').forEach(row => {
             const id = row.dataset.id, c = coins[id], cfg = ASSET_MAP[id];
             row.classList.toggle('active', id === currentAsset);
+            row.classList.toggle('locked', assetLocked(id));
             row.style.display = (assetFilter === 'all' || cfg.cat === assetFilter) ? '' : 'none';
             row.querySelector('.ar-price').textContent = fmtPrice(c.price);
             const ref = c.ticks.length ? c.ticks[0].c : c.price;
@@ -891,6 +960,11 @@
     function updateEstimate() {
         const co = ASSET_MAP[currentAsset], c = coins[currentAsset];
         const amt = parseFloat(el('amountInput').value) || 0;
+        if (tradeMode === 'lev') {
+            const size = amt * levX, x = { side: levSide, lev: levX, entry: c.price };
+            el('estimateText').textContent = amt > 0 ? `Position ${fmtMoney(size)} · liquidation à ${fmtPrice(liqPrice(x))}` : 'Marge en €';
+            return;
+        }
         if (action === 'buy') {
             el('estimateText').textContent = amt > 0 ? `≈ ${fmtQty(amt * (1 - FEE) / c.price)} ${co.sym}` : '≈ 0';
         } else {
@@ -920,11 +994,29 @@
     }
     function setAction(a) {
         action = a;
-        document.querySelectorAll('.action-btn').forEach(b => b.classList.toggle('active', b.dataset.action === a));
-        const tb = el('tradeBtn');
-        tb.textContent = (a === 'buy' ? 'Acheter ' : 'Vendre ') + ASSET_MAP[currentAsset].sym;
-        tb.className = 'trade-btn ' + (a === 'buy' ? 'buy' : 'sell');
+        document.querySelectorAll('.action-switch .action-btn').forEach(b => b.classList.toggle('active', b.dataset.action === a));
+        const tb = el('tradeBtn'), sym = ASSET_MAP[currentAsset].sym, lockedAsset = assetLocked(currentAsset);
+        if (tradeMode === 'lev') {
+            const lockedLev = featLocked('lev');
+            tb.textContent = lockedLev ? `🔒 Levier : niveau ${UNLOCK.lev}` : lockedAsset ? `🔒 ${sym} : niveau ${ASSET_LVL[currentAsset]}`
+                           : `Ouvrir ${levSide === 'long' ? 'Long' : 'Short'} ×${levX} ${sym}`;
+            tb.className = 'trade-btn ' + (levSide === 'long' ? 'buy' : 'sell');
+            tb.disabled = lockedLev || lockedAsset;
+        } else {
+            tb.textContent = a === 'buy' && lockedAsset ? `🔒 ${sym} : niveau ${ASSET_LVL[currentAsset]}` : (a === 'buy' ? 'Acheter ' : 'Vendre ') + sym;
+            tb.className = 'trade-btn ' + (a === 'buy' ? 'buy' : 'sell');
+            tb.disabled = a === 'buy' && lockedAsset;
+        }
         updateEstimate();
+    }
+    function setTradeMode(m) {
+        tradeMode = m;
+        document.querySelectorAll('#tradeMode .mode-tab').forEach(b => b.classList.toggle('active', b.dataset.mode === m));
+        el('levBox').hidden = m !== 'lev';
+        document.querySelector('.action-switch').hidden = m === 'lev';
+        el('feeNote').textContent = m === 'lev' ? 'Frais : 0,1 % de la position · liquidation à 90 % de perte de marge' : 'Frais : 0,1 %';
+        if (m === 'lev') action = 'buy';
+        setAction(action);
     }
 
     function refreshPortfolio() {
@@ -1101,6 +1193,320 @@
         tip.style.left = tx + 'px'; tip.style.top = ty + 'px';
     }
 
+
+    /* ================= LOT B : DÉBLOCAGES ================= */
+    const featLocked = f => state.career.level < UNLOCK[f];
+    const assetLocked = id => state.career.level < (ASSET_LVL[id] || 1);
+    const FEAT_NAMES = { stake: 'Staking', mine: 'Minage', lev: 'Trading à levier', halving: 'Halving (prestige)' };
+    // Ce que débloque le niveau L (affiché lors du passage de niveau)
+    function unlocksAt(L) {
+        const out = [];
+        for (const f in UNLOCK) if (UNLOCK[f] === L) out.push(FEAT_NAMES[f]);
+        for (const id in ASSET_LVL) if (ASSET_LVL[id] === L) out.push(ASSET_MAP[id].name);
+        BUSINESS_TYPES.forEach(bt => { if (bt.lvl === L && L > 1) out.push(bt.name); });
+        return out;
+    }
+    function addHoldings(id, qty, avgPrice) {
+        const h = state.holdings[id] || { qty: 0, avg: 0 };
+        const nq = h.qty + qty;
+        state.holdings[id] = { qty: nq, avg: nq > 0 ? (h.qty * h.avg + qty * avgPrice) / nq : 0 };
+    }
+    function setNews(icon, text, kind) {
+        el('newsIcon').textContent = icon;
+        el('newsText').textContent = text;
+        document.querySelector('.newsbar').className = 'newsbar' + (kind ? ' ' + kind : '');
+    }
+
+    /* ================= MINAGE ================= */
+    function rigCount() { let n = 0; for (const k in state.mining.rigs) n += state.mining.rigs[k]; return n; }
+    function rigCost(id) { return RIG_MAP[id].cost * Math.pow(RIG_GROWTH, state.mining.rigs[id] || 0); }
+    function rigValue() { return (state.mining.invested || 0) * 0.5; }
+    function hashrate() {
+        let h = 0;
+        for (const id in state.mining.rigs) h += RIG_MAP[id].hash * state.mining.rigs[id];
+        return h * (1 + SAT_BONUS * state.career.sats);
+    }
+    function powerKw() { let k = 0; for (const id in state.mining.rigs) k += RIG_MAP[id].kw * state.mining.rigs[id]; return k; }
+    function difficulty() { return 1 + state.mining.secs / DIFF_STEP; }
+    function btcPerSec() { return hashrate() * BTC_PER_TH / difficulty(); }
+    function buyRig(id) {
+        if (featLocked('mine')) return toast(`🔒 Minage : niveau ${UNLOCK.mine} requis.`, 'bad');
+        const r = RIG_MAP[id], cost = rigCost(id);
+        if (state.cash < cost) return toast('Liquide insuffisant.', 'bad');
+        state.cash -= cost;
+        state.mining.rigs[id] = (state.mining.rigs[id] || 0) + 1;
+        state.mining.invested = (state.mining.invested || 0) + cost;
+        gainXp(8 + 3 * Math.log2(cost));
+        toast(`⛏️ ${r.name} branché ! +${fmtNum(r.hash)} TH/s`, 'good');
+        checkAchievements(); refreshYield(); refreshHeader(); save();
+    }
+    function claimMined() {
+        const q = state.mining.pending;
+        if (q <= 0) return toast('Rien à encaisser pour l\'instant.', 'bad');
+        addHoldings('BTC', q, coins.BTC.price);   // prix de revient = cours actuel (pas de faux profit)
+        state.mining.pending = 0;
+        toast(`₿ ${fmtQty(q)} BTC transférés dans ton portefeuille (${fmtMoney(q * coins.BTC.price)})`, 'good');
+        refreshYield(); refreshPortfolio(); refreshHeader(); save();
+    }
+    function toggleMining() {
+        state.mining.on = !state.mining.on;
+        toast(state.mining.on ? '▶️ Minage relancé.' : '⏸️ Minage en pause (plus d\'électricité facturée).', 'good');
+        refreshYield(); save();
+    }
+    // dt = secondes réelles écoulées (la vitesse du marché n'accélère pas le minage)
+    function miningTick(dt) {
+        const m = state.mining;
+        if (!m.on || !rigCount()) return;
+        const cost = powerKw() * ELEC * dt;
+        if (state.cash < cost) {
+            m.on = false;
+            toast('⚡ Plus assez de liquide pour payer l\'électricité : minage arrêté.', 'bad');
+            refreshYield();
+            return;
+        }
+        state.cash -= cost;
+        const q = btcPerSec() * dt;
+        m.pending += q;
+        state.career.stats.minedBTC += q;
+        m.secs += dt;
+    }
+
+    /* ================= STAKING ================= */
+    function stakedValue() { return state.stakes.reduce((v, x) => v + x.qty * coins[x.id].price, 0); }
+    function stakeNow() {
+        if (featLocked('stake')) return toast(`🔒 Staking : niveau ${UNLOCK.stake} requis.`, 'bad');
+        const id = el('stakeAsset').value, term = STAKE_TERMS[+el('stakeTerm').value], pct = +el('stakePct').value / 100;
+        const h = state.holdings[id];
+        if (!h || h.qty <= 0) return toast(`Tu ne détiens pas de ${id} : achète-en d'abord.`, 'bad');
+        const qty = h.qty * pct, value = qty * coins[id].price;
+        if (value < 1) return toast('Montant trop faible (minimum 1 €).', 'bad');
+        h.qty -= qty;
+        if (h.qty < 1e-12) delete state.holdings[id];
+        const reward = qty * term.rate * STAKE_ASSETS[id];
+        state.stakes.push({ uid: 's' + Date.now() + Math.floor(Math.random() * 1000), id, qty, avg: h.avg, reward,
+                            end: state.career.stats.playSeconds + term.s, term: term.label });
+        state.career.stats.stakes++;
+        gainXp(5 + 2 * Math.log2(1 + value));
+        toast(`🔒 ${fmtQty(qty)} ${id} stakés pour ${term.label} (+${fmtQty(reward)} ${id} à l'échéance)`, 'good');
+        checkAchievements(); refreshYield(); refreshPortfolio(); refreshTradePanel(); refreshHeader(); save();
+    }
+    function stakingTick() {
+        const now = state.career.stats.playSeconds;
+        for (const x of state.stakes.slice()) {
+            if (now < x.end) continue;
+            const total = x.qty + x.reward;
+            addHoldings(x.id, total, x.qty * x.avg / total);   // la récompense est gratuite : prix moyen dilué
+            state.stakes = state.stakes.filter(y => y.uid !== x.uid);
+            celebrate(`🔓 Staking terminé : +${fmtQty(x.reward)} ${x.id} (${fmtMoney(x.reward * coins[x.id].price)})`, 'ach');
+            refreshYield(); refreshPortfolio(); save();
+        }
+    }
+
+    /* ================= LEVIER (long / short) ================= */
+    const levPnl = x => x.side === 'long' ? x.qty * (coins[x.id].price - x.entry) : x.qty * (x.entry - coins[x.id].price);
+    const levEquity = x => x.margin + levPnl(x);
+    function levEquityTotal() { return state.lev.reduce((v, x) => v + Math.max(0, levEquity(x)), 0); }
+    // Liquidation quand il ne reste que 10 % de la marge
+    function liqPrice(x) { const f = 0.9 / x.lev; return x.side === 'long' ? x.entry * (1 - f) : x.entry * (1 + f); }
+    function openLev() {
+        if (featLocked('lev')) return toast(`🔒 Levier : niveau ${UNLOCK.lev} requis.`, 'bad');
+        if (assetLocked(currentAsset)) return toast(`🔒 ${currentAsset} : niveau ${ASSET_LVL[currentAsset]} requis.`, 'bad');
+        const margin = parseFloat(el('amountInput').value) || 0;
+        if (margin <= 0) return toast('Entre une marge valide.', 'bad');
+        const size = margin * levX, fee = size * FEE;
+        if (margin + fee > state.cash + 1e-9) return toast('Liquide insuffisant (marge + frais).', 'bad');
+        const price = coins[currentAsset].price;
+        state.cash -= margin + fee;
+        state.lev.push({ uid: 'l' + Date.now() + Math.floor(Math.random() * 1000), id: currentAsset, side: levSide, lev: levX, margin, entry: price, qty: size / price });
+        state.career.stats.levTrades++;
+        state.career.stats.volume += size;
+        toast(`⚡ ${levSide === 'long' ? 'Long' : 'Short'} ×${levX} ouvert sur ${currentAsset} (${fmtMoney(size)})`, 'good');
+        afterTrade(); refreshLev();
+    }
+    function closeLev(uid, liquidated) {
+        const x = state.lev.find(y => y.uid === uid);
+        if (!x) return;
+        state.lev = state.lev.filter(y => y.uid !== uid);
+        const st = state.career.stats;
+        if (liquidated) {
+            st.liquidations++; st.losses++; st.streak = 0;
+            celebrate(`💀 Liquidé ! ${x.side === 'long' ? 'Long' : 'Short'} ×${x.lev} sur ${x.id} : -${fmtMoney(x.margin)}`, 'rank');
+            unlock('liquidated');
+        } else {
+            const proceeds = Math.max(0, levEquity(x) - x.qty * coins[x.id].price * FEE);
+            state.cash += proceeds;
+            toast(`Position fermée : ${proceeds >= x.margin ? '+' : ''}${fmtMoney(proceeds - x.margin)}`, proceeds >= x.margin ? 'good' : 'bad');
+            recordSale(x.id, x.margin, proceeds);
+            if (proceeds > x.margin) {
+                unlock('lev_win');
+                if (x.lev >= 10) unlock('lev_x10');
+                if (x.side === 'short' && regime && regime.type === 'crash') unlock('short_crash');
+            }
+        }
+        afterTrade(); refreshLev();
+    }
+    function levTick() {
+        for (const x of state.lev.slice()) if (levEquity(x) <= x.margin * 0.1) closeLev(x.uid, true);
+    }
+    function refreshLev() {
+        const panel = el('levPanel');
+        panel.hidden = !state.lev.length;
+        el('levBody').innerHTML = state.lev.map(x => {
+            const pnl = levPnl(x), pct = pnl / x.margin, co = ASSET_MAP[x.id];
+            return `<tr>
+                <td><span class="p-asset"><span class="ar-icon" style="background:${co.color}22;color:${co.color}">${co.icon}</span><b>${co.sym}</b></span></td>
+                <td class="${x.side === 'long' ? 'c-up' : 'c-down'}">${x.side === 'long' ? '📈 Long' : '📉 Short'} ×${x.lev}</td>
+                <td class="num">${fmtMoney(x.margin)}</td>
+                <td class="num">${fmtPrice(x.entry)}</td>
+                <td class="num c-down">${fmtPrice(liqPrice(x))}</td>
+                <td class="num ${pnl >= 0 ? 'c-up' : 'c-down'}">${fmtMoney(pnl)} (${fmtPct(pct)})</td>
+                <td class="num"><button class="biz-btn sell lev-close" data-uid="${x.uid}">Fermer</button></td>
+            </tr>`;
+        }).join('');
+    }
+
+    /* ================= KRACHS, BULL RUNS, RUG PULLS ================= */
+    // Toutes les 20-40 min (temps de marché) : krach (45 %, annoncé 1 min avant par des rumeurs),
+    // bull run (40 %, annoncé) ou rug pull sur un memecoin (15 %, sans prévenir).
+    // Les matières premières ne sont pas touchées : ce sont les valeurs refuges.
+    function maybeRegime() {
+        const t = gameTime();
+        if (regime && t >= regime.until) {
+            if (regime.type === 'crash' && regime.startNW >= 1000 && netWorth() >= regime.startNW * 0.95) unlock('crash_survivor');
+            setNews('📰', regime.type === 'crash' ? '🌤️ Fin du krach : le marché crypto se stabilise.' : '🐂 Fin du bull run : retour au calme.');
+            regime = null;
+        }
+        if (pendingRegime && t >= pendingRegime.at) { startRegime(pendingRegime.type); pendingRegime = null; }
+        if (!regime && !pendingRegime && t >= nextRegimeAt) {
+            const r = Math.random();
+            if (r < 0.15) startRug();
+            else {
+                const type = r < 0.6 ? 'crash' : 'bull';
+                pendingRegime = { type, at: t + 60 };
+                if (type === 'crash') setNews('⚠️', pick(['Rumeurs de régulation sur les cryptos… les gros portefeuilles s\'agitent.', 'Un grand exchange suspend les retraits… inquiétude sur le marché.']), 'warn');
+                else setNews('👀', pick(['Les volumes explosent sur les cryptos… un mouvement se prépare.', 'Un fonds géant annonce des achats massifs de crypto…']), 'warn');
+            }
+            nextRegimeAt = t + 1200 + Math.random() * 1200;
+        }
+    }
+    function startRegime(type) {
+        const t = gameTime(), dur = 180 + Math.random() * 180;
+        for (const a of ASSETS) {
+            if (a.cat !== 'crypto') continue;
+            let mag = type === 'crash' ? 0.25 + Math.random() * 0.2 : 0.2 + Math.random() * 0.2;
+            if (a.meme) mag = Math.min(0.7, mag * 1.5);
+            coins[a.id].shock = { perSec: (type === 'crash' ? Math.log(1 - mag) : Math.log(1 + mag)) / dur, until: t + dur };
+        }
+        regime = { type, until: t + dur, startNW: netWorth() };
+        if (type === 'crash') setNews('🩸', 'KRACH : les cryptos s\'effondrent ! Les matières premières résistent.', 'crash');
+        else setNews('🐂', 'BULL RUN : toutes les cryptos s\'envolent !', 'bull');
+    }
+    function startRug() {
+        const id = pick(['DOGE', 'PEPE']), dur = 40, drop = 0.75 + Math.random() * 0.15;
+        coins[id].shock = { perSec: Math.log(1 - drop) / dur, until: gameTime() + dur };
+        lastRug = { id, t: gameTime() };
+        setNews('🪤', `RUG PULL sur ${id} : les développeurs ont vidé la caisse ! (-${Math.round(drop * 100)} %)`, 'crash');
+    }
+
+    /* ================= PRESTIGE « HALVING » ================= */
+    const startCash = () => START_CASH + 10 * state.career.sats;
+    const satsForRun = () => Math.floor(10 * Math.sqrt(state.runPeak / 1e8));
+    const canHalving = () => state.career.level >= UNLOCK.halving && state.runPeak >= HALVING_MIN_NW;
+    function doHalving() {
+        if (!canHalving()) return toast(`Halving : niveau ${UNLOCK.halving} et ${fmtMoney(HALVING_MIN_NW)} de fortune dans cette partie requis.`, 'bad');
+        const gain = satsForRun();
+        if (!confirm(`Lancer le Halving ?\n\nTu repars de zéro (liquide, actifs, business, luxe, minage, staking, positions) et tu gagnes ${gain} Satoshis permanents (+${gain * SAT_BONUS * 100} % de revenu passif et de hashrate, plus de capital de départ).\n\nNiveau, rang, succès et fortune record sont conservés.`)) return;
+        const c = state.career;
+        c.sats += gain; c.halvings++;
+        state.cash = startCash(); state.holdings = {}; state.luxury = {}; state.businesses = [];
+        state.mining = freshMining(); state.stakes = []; state.lev = []; state.runPeak = state.cash;
+        celebrate(`🪙 Halving n°${c.halvings} : +${gain} Satoshis ! Revenu +${c.sats * SAT_BONUS * 100} %`, 'rank');
+        gainXp(2000 * c.halvings);
+        checkAchievements();
+        refreshLuxury(); refreshBusiness(); refreshYield(); refreshLev(); refreshPortfolio(); refreshTradePanel(); refreshHeader(); refreshProgress();
+        save(); saveScore();
+    }
+    function renderHalving() {
+        const c = state.career, gain = satsForRun(), ok = canHalving();
+        el('halvingCard').innerHTML = `
+            <div class="hv-main">
+                <div class="hv-sats"><b>${c.sats}</b><span>Satoshis</span></div>
+                <div class="hv-text">
+                    <p>Bonus permanent : <b>+${Math.round(c.sats * SAT_BONUS * 100)} %</b> de revenu passif et de hashrate · capital de départ ${fmtMoney(startCash())} · Halvings : ${c.halvings}</p>
+                    <p class="hv-req ${c.level >= UNLOCK.halving ? 'ok' : ''}">${c.level >= UNLOCK.halving ? '✅' : '⬜'} Niveau ${UNLOCK.halving} (niv. ${c.level})</p>
+                    <p class="hv-req ${state.runPeak >= HALVING_MIN_NW ? 'ok' : ''}">${state.runPeak >= HALVING_MIN_NW ? '✅' : '⬜'} Fortune de ${fmtMoney(HALVING_MIN_NW)} dans cette partie (record : ${fmtMoney(state.runPeak)})</p>
+                </div>
+            </div>
+            <button class="bm-confirm" id="halvingBtn" ${ok ? '' : 'disabled'}>🪙 Lancer le Halving (+${gain} Satoshis)</button>`;
+        el('halvingBtn').onclick = doHalving;
+    }
+
+    /* ================= ONGLET RENDEMENT (staking + minage) ================= */
+    function fmtNum(n) {
+        const a = Math.abs(n);
+        return a >= 1e9 ? (n / 1e9).toFixed(2) + 'B' : a >= 1e6 ? (n / 1e6).toFixed(2) + 'M' : a >= 1e4 ? (n / 1e3).toFixed(1) + 'K' : (+n.toFixed(2)).toLocaleString('fr-FR');
+    }
+    function buildYield() {
+        el('stakeAsset').innerHTML = Object.keys(STAKE_ASSETS).map(id => `<option value="${id}">${ASSET_MAP[id].name} (${id})</option>`).join('');
+        el('stakeTerm').innerHTML = STAKE_TERMS.map((t, i) => `<option value="${i}">${t.label}</option>`).join('');
+        ['stakeAsset', 'stakeTerm', 'stakePct'].forEach(id => el(id).addEventListener('change', refreshYield));
+        el('stakeBtn').onclick = stakeNow;
+        el('mineToggle').onclick = toggleMining;
+        el('mineClaim').onclick = claimMined;
+        const grid = el('rigGrid'); grid.innerHTML = '';
+        RIGS.forEach(r => {
+            const card = document.createElement('div');
+            card.className = 'item-card rig-card'; card.dataset.rig = r.id;
+            card.innerHTML = `<div class="item-img"><div class="item-emoji" aria-hidden="true">${r.emoji}</div><span class="item-cat">Minage</span><span class="rig-owned"></span></div>
+                <div class="item-body">
+                    <span class="item-name">${r.name}</span>
+                    <div class="item-meta"><span class="im-cost"></span><span class="im-income">${fmtNum(r.hash)} TH/s · ${r.kw} kW</span></div>
+                    <button class="item-buy">Acheter</button>
+                </div>`;
+            card.querySelector('.item-buy').onclick = () => buyRig(r.id);
+            grid.appendChild(card);
+        });
+        refreshYield();
+    }
+    function refreshYield() {
+        const sl = featLocked('stake'), ml = featLocked('mine');
+        el('stakeCard').classList.toggle('feature-locked', sl);
+        el('stakeLock').textContent = sl ? `🔒 niveau ${UNLOCK.stake}` : '';
+        el('mineCard').classList.toggle('feature-locked', ml);
+        el('rigGrid').classList.toggle('feature-locked', ml);
+        el('mineLock').textContent = ml ? `🔒 niveau ${UNLOCK.mine}` : '';
+
+        // staking
+        const id = el('stakeAsset').value, term = STAKE_TERMS[+el('stakeTerm').value] || STAKE_TERMS[0], pct = +el('stakePct').value / 100;
+        const h = state.holdings[id], qty = h ? h.qty * pct : 0, rw = qty * term.rate * (STAKE_ASSETS[id] || 0);
+        el('stakeEst').innerHTML = h ? `${fmtQty(qty)} ${id} (${fmtMoney(qty * coins[id].price)}) → <b class="c-up">+${fmtQty(rw)} ${id}</b> dans ${term.label} (+${(term.rate * STAKE_ASSETS[id] * 100).toFixed(1)} %)`
+                                     : `Tu ne détiens pas de ${id}. Achète-en sur le marché pour le staker.`;
+        el('stakeBtn').disabled = sl || !h;
+        const now = state.career.stats.playSeconds;
+        el('stakeList').innerHTML = state.stakes.length ? state.stakes.map(x =>
+            `<div class="stake-row"><span>🔒 <b>${fmtQty(x.qty)} ${x.id}</b> · ${x.term}</span><span class="c-up">+${fmtQty(x.reward)} ${x.id}</span><em>${humanize(x.end - now)}</em></div>`).join('')
+            : '<div class="stake-empty">Aucun staking en cours.</div>';
+
+        // minage
+        const m = state.mining, eurH = btcPerSec() * 3600 * coins.BTC.price, elecH = powerKw() * ELEC * 3600;
+        el('mineStats').innerHTML = [
+            ['Hashrate', fmtNum(hashrate()) + ' TH/s'], ['Production', fmtQty(btcPerSec() * 3600) + ' BTC/h'],
+            ['Électricité', '-' + fmtMoney(elecH) + '/h'], ['Rentabilité', `<span class="${eurH - elecH >= 0 ? 'c-up' : 'c-down'}">${fmtMoney(eurH - elecH)}/h</span>`],
+            ['Difficulté', '×' + difficulty().toFixed(2)], ['À encaisser', fmtQty(m.pending) + ' BTC'],
+        ].map(([k, v]) => `<div class="stat-box"><span>${k}</span><b>${v}</b></div>`).join('');
+        el('mineToggle').textContent = m.on ? '⏸️ Mettre en pause' : '▶️ Relancer le minage';
+        el('mineToggle').disabled = ml || !rigCount();
+        el('mineClaim').disabled = ml || m.pending <= 0;
+        el('mineClaim').textContent = `₿ Encaisser (${fmtMoney(m.pending * coins.BTC.price)})`;
+        document.querySelectorAll('#rigGrid .rig-card').forEach(card => {
+            const id = card.dataset.rig, n = state.mining.rigs[id] || 0;
+            card.querySelector('.im-cost').textContent = fmtMoney(rigCost(id));
+            card.querySelector('.rig-owned').textContent = n ? '×' + n : '';
+            card.querySelector('.item-buy').disabled = ml || state.cash < rigCost(id);
+            card.querySelector('.item-buy').textContent = ml ? `🔒 Niveau ${UNLOCK.mine}` : 'Acheter';
+        });
+    }
+
     /* ================= SAUVEGARDE ================= */
     function save() {
         try {
@@ -1108,6 +1514,7 @@
                 cash: state.cash, holdings: state.holdings,
                 luxury: state.luxury, businesses: state.businesses,
                 gameTime: state.gameTime, career: state.career, coins: {},
+                runPeak: state.runPeak, mining: state.mining, stakes: state.stakes, lev: state.lev,
             };
             for (const id in coins) {
                 const c = coins[id];
@@ -1127,6 +1534,10 @@
             const fc = freshCareer();
             state.career = Object.assign(fc, d.career || {});
             state.career.stats = Object.assign(fc.stats, (d.career && d.career.stats) || {});
+            state.runPeak = d.runPeak || state.career.peakNW;
+            state.mining = Object.assign(freshMining(), d.mining || {});
+            state.stakes = d.stakes || [];
+            state.lev = d.lev || [];
             for (const id in d.coins) {
                 const c = coins[id]; if (!c) continue;
                 const s = d.coins[id];
@@ -1199,11 +1610,17 @@
         state.gameTime++;
         maybeEvent();
         // ×2/×4/×8 accélère le marché, pas le revenu passif ni le temps de jeu (sinon tout se finit en 20 min)
-        state.cash += passiveIncome() / speed;
-        state.career.stats.playSeconds += 1 / speed;
+        maybeRegime();
+        const dt = 1 / speed;   // seconde réelle
+        state.cash += passiveIncome() * dt;
+        state.career.stats.playSeconds += dt;
+        miningTick(dt); stakingTick(); levTick();
         const nw = netWorth();
         if (nw > state.career.peakNW) state.career.peakNW = nw;
+        if (nw > state.runPeak) state.runPeak = nw;
         refreshHeader(); refreshAssetList(); refreshTradePanel(); refreshPortfolio(); drawChart();
+        if (state.lev.length) refreshLev();
+        if (activeView === 'yield') refreshYield();
     }
 
     /* ================= TOAST ================= */
@@ -1232,6 +1649,9 @@
         buildTimeframes();
         buildLuxury();
         buildBizTypes();
+        buildYield();
+        if (assetLocked(currentAsset)) currentAsset = 'DOGE';   // BTC se débloque au niveau 9
+        nextRegimeAt = gameTime() + 900 + Math.random() * 900;   // 1er krach / bull run : 15-30 min de marché
 
         // Onglets
         document.querySelectorAll('.tab').forEach(t => {
@@ -1242,6 +1662,7 @@
                 if (t.dataset.view === 'achats') refreshLuxury();
                 if (t.dataset.view === 'business') refreshBusiness();
                 if (t.dataset.view === 'progress') refreshProgress();
+                if (t.dataset.view === 'yield') refreshYield();
             };
         });
         el('rankBadge').onclick = el('levelChip').onclick = () => document.querySelector('.tab[data-view="progress"]').click();
@@ -1280,13 +1701,28 @@
             q.onclick = () => {
                 const pct = parseInt(q.dataset.pct, 10) / 100;
                 const c = coins[currentAsset];
-                if (action === 'buy') el('amountInput').value = Math.floor(state.cash * pct * 100) / 100;
+                if (tradeMode === 'lev') el('amountInput').value = Math.floor(state.cash * pct / (1 + levX * FEE) * 100) / 100;   // marge + frais ≤ liquide
+                else if (action === 'buy') el('amountInput').value = Math.floor(state.cash * pct * 100) / 100;
                 else { const h = state.holdings[currentAsset]; el('amountInput').value = Math.floor((h ? h.qty * c.price : 0) * pct * 100) / 100; }
                 updateEstimate();
             };
         });
         el('amountInput').addEventListener('input', updateEstimate);
-        el('tradeBtn').onclick = () => { action === 'buy' ? buy() : sell(); };
+        el('tradeBtn').onclick = () => { tradeMode === 'lev' ? openLev() : (action === 'buy' ? buy() : sell()); };
+        document.querySelectorAll('#tradeMode .mode-tab').forEach(b => b.onclick = () => setTradeMode(b.dataset.mode));
+        document.querySelectorAll('#levBox [data-side]').forEach(b => b.onclick = () => {
+            levSide = b.dataset.side;
+            document.querySelectorAll('#levBox [data-side]').forEach(x => x.classList.toggle('active', x === b));
+            setAction(action);
+        });
+        el('levX').innerHTML = LEVERAGES.map(x => `<button class="lev-chip${x === levX ? ' active' : ''}" data-x="${x}">×${x}</button>`).join('');
+        el('levX').onclick = e => {
+            const b = e.target.closest('.lev-chip'); if (!b) return;
+            levX = +b.dataset.x;
+            el('levX').querySelectorAll('.lev-chip').forEach(x => x.classList.toggle('active', x === b));
+            setAction(action);
+        };
+        el('levBody').onclick = e => { const b = e.target.closest('.lev-close'); if (b) closeLev(b.dataset.uid, false); };
         const cv = el('chart');
         cv.addEventListener('mousemove', onChartMove);
         cv.addEventListener('mouseleave', onChartLeave);
@@ -1308,7 +1744,8 @@
 
         initFirebase();
 
-        setAction('buy');
+        setTradeMode('spot');
+        refreshLev();
         refreshHeader(); refreshAssetList(); refreshTradePanel(); refreshPortfolio();
         refreshLuxury(); refreshBusiness();
         drawChart();
