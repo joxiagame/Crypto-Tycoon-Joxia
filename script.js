@@ -20,8 +20,10 @@
     const STORE_TICKS = 900;      // ticks sauvegardés dans localStorage (15 min)
     const VISIBLE = 60;           // bougies affichées sur le graphique
     const MOM_K = 0.004;          // vitesse de retour à la moyenne du momentum
-    const SAVE_KEY = 'crypto-tycoon-save-v3';
-    const FIREBASE_PATH = 'games/CRYPTO/scores';
+    const SAVE_KEY = 'crypto-tycoon-save-v4';
+    const OLD_SAVE_KEYS = ['crypto-tycoon-save-v3'];   // ancienne version → badge « Pionnier »
+    // Nouvelle échelle (rangs jusqu'à 1 000 Md€) : nouveau classement, l'ancien CRYPTO est archivé.
+    const FIREBASE_PATH = 'games/CRYPTO_V2/scores';
 
     // Actifs tradables : cryptos + matières premières.
     //  base      : prix de départ (€)
@@ -71,19 +73,29 @@
         { id: 'yacht',      name: 'Yacht',             img: 'assets/yacht.jpg',      cost: 20000000,  cat: 'Immobilier' },
     ];
 
-    // Types de business : revenu passif (income/s) × niveau.
+    // Types de business : revenu passif (income/s) × niveau × paliers.
+    //  lvl : niveau joueur requis. Rentabilité de plus en plus lente (10 min → plusieurs heures),
+    //  calibrée par simulation : ~5 h pour 1 M€, ~12 h pour 50 M€, ~120 h pour 1 000 Md€ sans trader.
     const BUSINESS_TYPES = [
-        { id: 'limonade',  name: 'Stand de limonade', img: 'assets/limonade.jpg',  cost: 30,        income: 0.05 },
-        { id: 'foodtruck', name: 'Food truck',        img: 'assets/foodtruck.jpg', cost: 800,       income: 0.9 },
-        { id: 'laverie',   name: 'Laverie',           img: 'assets/laverie.jpg',   cost: 5000,      income: 5 },
-        { id: 'pizzeria',  name: 'Pizzeria',          img: 'assets/pizzeria.jpg',  cost: 25000,     income: 28 },
-        { id: 'boutique',  name: 'Boutique en ligne', img: 'assets/boutique.jpg',  cost: 80000,     income: 90 },
-        { id: 'club',      name: 'Boîte de nuit',     img: 'assets/club.jpg',      cost: 250000,    income: 280 },
-        { id: 'startup',   name: 'Startup tech',      img: 'assets/startup.jpg',   cost: 1000000,   income: 1100 },
-        { id: 'banque',    name: 'Banque',            img: 'assets/banque.jpg',    cost: 30000000,  income: 33000 },
+        { id: 'limonade',   name: 'Stand de limonade', img: 'assets/limonade.jpg',  cost: 30,     income: 0.05,  lvl: 1 },
+        { id: 'foodtruck',  name: 'Food truck',        img: 'assets/foodtruck.jpg', cost: 800,    income: 0.6,   lvl: 2 },
+        { id: 'laverie',    name: 'Laverie',           img: 'assets/laverie.jpg',   cost: 5000,   income: 2.5,   lvl: 4 },
+        { id: 'pizzeria',   name: 'Pizzeria',          img: 'assets/pizzeria.jpg',  cost: 25000,  income: 9,     lvl: 7 },
+        { id: 'boutique',   name: 'Boutique en ligne', img: 'assets/boutique.jpg',  cost: 80000,  income: 22,    lvl: 10 },
+        { id: 'club',       name: 'Boîte de nuit',     img: 'assets/club.jpg',      cost: 250000, income: 50,    lvl: 14 },
+        { id: 'startup',    name: 'Startup tech',      img: 'assets/startup.jpg',   cost: 1e6,    income: 140,   lvl: 18 },
+        { id: 'banque',     name: 'Banque',            img: 'assets/banque.jpg',    cost: 3e7,    income: 2500,  lvl: 25 },
+        { id: 'datacenter', name: 'Data center',       emoji: '🖥️',                 cost: 5e8,    income: 30000, lvl: 35 },
+        { id: 'exchange',   name: 'Plateforme crypto', emoji: '🏛️',                 cost: 1e10,   income: 450000, lvl: 48 },
+        { id: 'fonds',      name: 'Fonds souverain',   emoji: '🌍',                 cost: 3e11,   income: 1e7,   lvl: 60 },
     ];
+    const BIZ_CREATE_GROWTH = 1.5;   // chaque exemplaire du même type coûte ×1,5
+    const BIZ_UP_GROWTH = 1.15;      // chaque niveau d'amélioration coûte ×1,15
+    const BIZ_MAX_LEVEL = 100;
+    const BIZ_MILESTONES = [[10, 2], [25, 2], [50, 2], [100, 3]];   // paliers : revenu ×2 / ×3
 
-    const RANKS = [
+    // Anciens rangs (v3) : servent seulement à attribuer le badge « Pionnier ».
+    const OLD_RANKS = [
         { min: 0,          emoji: '💼', name: 'Débutant' },
         { min: 50,         emoji: '📈', name: 'Trader' },
         { min: 200,        emoji: '🐬', name: 'Dauphin' },
@@ -96,6 +108,98 @@
         { min: 10000000,   emoji: '🏦', name: 'Tycoon' },
         { min: 50000000,   emoji: '🌕', name: 'Crypto King' },
     ];
+
+    /* ===== Carrière : niveaux, rangs (ligues) et succès ===== */
+    const MAX_LEVEL = 100;
+    // XP pour passer du niveau L à L+1 : 25 × L^1,15 (≈ 230 000 XP au total pour le niveau 100)
+    const xpForLevel = L => Math.round(25 * Math.pow(L, 1.15));
+
+    // Rangs : fortune RECORD + niveau + une condition. Un rang acquis n'est jamais perdu.
+    const RANKS = [
+        { emoji: '🥉', name: 'Bronze I',     nw: 0,      lvl: 1 },
+        { emoji: '🥉', name: 'Bronze II',    nw: 100,    lvl: 2 },
+        { emoji: '🥉', name: 'Bronze III',   nw: 500,    lvl: 3,  req: ['wins', 3] },
+        { emoji: '🥈', name: 'Argent I',     nw: 2500,   lvl: 5,  req: ['biz', 1] },
+        { emoji: '🥈', name: 'Argent II',    nw: 1e4,    lvl: 7,  req: ['wins', 15] },
+        { emoji: '🥈', name: 'Argent III',   nw: 4e4,    lvl: 9,  req: ['biz', 3] },
+        { emoji: '🥇', name: 'Or I',         nw: 1.5e5,  lvl: 12, req: ['wins', 40] },
+        { emoji: '🥇', name: 'Or II',        nw: 5e5,    lvl: 15, req: ['bizLevel', 10] },
+        { emoji: '🥇', name: 'Or III',       nw: 1.5e6,  lvl: 18, req: ['lux', 5] },
+        { emoji: '💠', name: 'Platine I',    nw: 5e6,    lvl: 22, req: ['wins', 100] },
+        { emoji: '💠', name: 'Platine II',   nw: 1.5e7,  lvl: 26, req: ['ach', 10] },
+        { emoji: '💠', name: 'Platine III',  nw: 5e7,    lvl: 30, req: ['bizLevel', 25] },
+        { emoji: '💎', name: 'Diamant I',    nw: 1.5e8,  lvl: 35, req: ['wins', 250] },
+        { emoji: '💎', name: 'Diamant II',   nw: 5e8,    lvl: 40, req: ['ach', 20] },
+        { emoji: '💎', name: 'Diamant III',  nw: 1.5e9,  lvl: 46, req: ['lux', 12] },
+        { emoji: '🏆', name: 'Maître',       nw: 1e10,   lvl: 55, req: ['wins', 600] },
+        { emoji: '👑', name: 'Grand Maître', nw: 1e11,   lvl: 68, req: ['ach', 35] },
+        { emoji: '🌕', name: 'Légende',      nw: 1e12,   lvl: 85, req: ['lux', 18] },
+    ];
+
+    // Succès : t(c, st) = condition vérifiée régulièrement ; ceux sans t sont débloqués par un événement.
+    const ACHIEVEMENTS = [
+        // — Trading —
+        { id: 'first_buy',   icon: '🛒', name: 'Premier pas',          desc: 'Acheter ton premier actif.', xp: 50,    t: (c, st) => st.buys >= 1 },
+        { id: 'first_win',   icon: '💵', name: 'Premier profit',       desc: 'Clôturer un trade gagnant.', xp: 100,   t: (c, st) => st.wins >= 1 },
+        { id: 'wins_10',     icon: '📈', name: 'Trader du dimanche',   desc: '10 trades gagnants.',        xp: 250,   t: (c, st) => st.wins >= 10 },
+        { id: 'wins_100',    icon: '📊', name: 'Day trader',           desc: '100 trades gagnants.',       xp: 1000,  t: (c, st) => st.wins >= 100 },
+        { id: 'wins_500',    icon: '🐺', name: 'Loup de Wall Street',  desc: '500 trades gagnants.',       xp: 4000,  t: (c, st) => st.wins >= 500 },
+        { id: 'wins_1000',   icon: '🤖', name: 'Machine à profits',    desc: '1 000 trades gagnants.',     xp: 8000,  t: (c, st) => st.wins >= 1000 },
+        { id: 'streak_5',    icon: '🔥', name: 'Main chaude',          desc: '5 trades gagnants d\'affilée.', xp: 400, t: (c, st) => st.bestStreak >= 5 },
+        { id: 'streak_15',   icon: '☄️', name: 'Intouchable',          desc: '15 trades gagnants d\'affilée.', xp: 2500, t: (c, st) => st.bestStreak >= 15 },
+        { id: 'trade_50',    icon: '🎯', name: 'Coup de maître',       desc: 'Un trade à +50 % ou plus.',  xp: 800 },
+        { id: 'trade_x10',   icon: '🌙', name: 'To the moon',          desc: 'Un trade ×10 (+900 %).',     xp: 5000, secret: true },
+        { id: 'paper_hands', icon: '🧻', name: 'Mains de papier',      desc: 'Revendre à -50 % ou pire.',  xp: 150,  secret: true },
+        { id: 'news_trader', icon: '📰', name: 'Sur la news',          desc: 'Revendre en profit un actif moins de 2 min après une news haussière.', xp: 600, secret: true },
+        { id: 'diversified', icon: '🧺', name: 'Diversifié',           desc: 'Détenir 5 actifs en même temps.', xp: 300, t: () => Object.keys(state.holdings).length >= 5 },
+        { id: 'all_crypto',  icon: '🪙', name: 'Collectionneur crypto', desc: 'Détenir les 8 cryptos en même temps.', xp: 1500, t: () => ASSETS.filter(a => a.cat === 'crypto').every(a => state.holdings[a.id]) },
+        { id: 'all_matiere', icon: '⛏️', name: 'Matières premières',   desc: 'Détenir les 7 matières en même temps.', xp: 1500, t: () => ASSETS.filter(a => a.cat === 'matiere').every(a => state.holdings[a.id]) },
+        { id: 'volume_1m',   icon: '💱', name: 'Gros volume',          desc: '1 M€ échangés au total.',    xp: 800,   t: (c, st) => st.volume >= 1e6 },
+        { id: 'volume_1b',   icon: '🏦', name: 'Teneur de marché',     desc: '1 Md€ échangés au total.',   xp: 6000,  t: (c, st) => st.volume >= 1e9 },
+        { id: 'meme_lord',   icon: '🐸', name: 'Roi des memes',        desc: '100 K€ de profits sur DOGE et PEPE.', xp: 2000, t: (c, st) => st.memeProfit >= 1e5 },
+        // — Fortune (record) —
+        { id: 'nw_1k',   icon: '💶', name: 'Premier millier',    desc: 'Fortune de 1 000 €.',       xp: 150,   t: c => c.peakNW >= 1e3 },
+        { id: 'nw_100k', icon: '💰', name: 'Belle cagnotte',     desc: 'Fortune de 100 K€.',        xp: 600,   t: c => c.peakNW >= 1e5 },
+        { id: 'nw_1m',   icon: '🤑', name: 'Millionnaire',       desc: 'Fortune de 1 M€.',          xp: 1500,  t: c => c.peakNW >= 1e6 },
+        { id: 'nw_100m', icon: '🛥️', name: 'Très très riche',    desc: 'Fortune de 100 M€.',        xp: 4000,  t: c => c.peakNW >= 1e8 },
+        { id: 'nw_1b',   icon: '🏰', name: 'Milliardaire',       desc: 'Fortune de 1 Md€.',         xp: 8000,  t: c => c.peakNW >= 1e9 },
+        { id: 'nw_1t',   icon: '🌌', name: 'Trillionnaire',      desc: 'Fortune de 1 000 Md€.',     xp: 25000, t: c => c.peakNW >= 1e12 },
+        { id: 'cash_1m', icon: '🧦', name: 'Bas de laine',       desc: 'Avoir 1 M€ en liquide.',    xp: 600,   t: () => state.cash >= 1e6, secret: true },
+        // — Business —
+        { id: 'biz_1',      icon: '🍋', name: 'Entrepreneur',        desc: 'Créer ton premier business.', xp: 150,  t: (c, st) => st.bizCreated >= 1 },
+        { id: 'biz_5',      icon: '🏪', name: 'Serial entrepreneur', desc: 'Posséder 5 business.',        xp: 500,  t: () => state.businesses.length >= 5 },
+        { id: 'biz_20',     icon: '🏢', name: 'Holding',             desc: 'Posséder 20 business.',       xp: 3000, t: () => state.businesses.length >= 20 },
+        { id: 'biz_lvl10',  icon: '⚙️', name: 'Bien rodé',           desc: 'Un business au niveau 10.',   xp: 400,  t: () => maxBizLevel() >= 10 },
+        { id: 'biz_lvl25',  icon: '🔧', name: 'Optimisé',            desc: 'Un business au niveau 25.',   xp: 1500, t: () => maxBizLevel() >= 25 },
+        { id: 'biz_lvl50',  icon: '🏭', name: 'Industriel',          desc: 'Un business au niveau 50.',   xp: 5000, t: () => maxBizLevel() >= 50 },
+        { id: 'biz_lvl100', icon: '🗿', name: 'Empire',              desc: 'Un business au niveau 100.',  xp: 15000, t: () => maxBizLevel() >= 100 },
+        { id: 'inc_100',    icon: '💧', name: 'Rentier',             desc: '100 €/s de revenu passif.',   xp: 800,  t: () => passiveIncome() >= 100 },
+        { id: 'inc_10k',    icon: '🌊', name: 'Pluie d\'or',          desc: '10 K€/s de revenu passif.',   xp: 3000, t: () => passiveIncome() >= 1e4 },
+        { id: 'inc_1m',     icon: '🌋', name: 'Geyser de cash',      desc: '1 M€/s de revenu passif.',    xp: 10000, t: () => passiveIncome() >= 1e6 },
+        { id: 'all_types',  icon: '🧩', name: 'Conglomérat',         desc: 'Un business de chaque type.', xp: 12000, t: () => BUSINESS_TYPES.every(bt => state.businesses.some(b => b.type === bt.id)) },
+        { id: 'branding',   icon: '✏️', name: 'Nom de marque',       desc: 'Renommer un business.',       xp: 50 },
+        // — Luxe —
+        { id: 'lux_1',   icon: '📱', name: 'Premier caprice',     desc: 'Acheter un objet de luxe.',     xp: 100,  t: () => Object.keys(state.luxury).length >= 1 },
+        { id: 'lux_5',   icon: '⌚', name: 'La belle vie',        desc: 'Posséder 5 objets de luxe.',    xp: 600,  t: () => Object.keys(state.luxury).length >= 5 },
+        { id: 'lux_all', icon: '🖼️', name: 'Collection complète', desc: 'Posséder tous les objets de luxe.', xp: 8000, t: () => Object.keys(state.luxury).length >= LUXURY.length },
+        { id: 'yacht',   icon: '🛳️', name: 'Capitaine',           desc: 'Acheter le yacht.',             xp: 2000, t: () => !!state.luxury.yacht },
+        // — Niveaux & rangs —
+        { id: 'lvl_10',  icon: '⭐', name: 'Niveau 10',  desc: 'Atteindre le niveau 10.',  xp: 300,  t: c => c.level >= 10 },
+        { id: 'lvl_25',  icon: '🌟', name: 'Niveau 25',  desc: 'Atteindre le niveau 25.',  xp: 1200, t: c => c.level >= 25 },
+        { id: 'lvl_50',  icon: '✨', name: 'Niveau 50',  desc: 'Atteindre le niveau 50.',  xp: 4000, t: c => c.level >= 50 },
+        { id: 'lvl_75',  icon: '💫', name: 'Niveau 75',  desc: 'Atteindre le niveau 75.',  xp: 8000, t: c => c.level >= 75 },
+        { id: 'lvl_100', icon: '🌠', name: 'Niveau 100', desc: 'Atteindre le niveau maximum.', xp: 0, t: c => c.level >= 100 },
+        { id: 'rank_or',      icon: '🥇', name: 'Ligue Or',       desc: 'Atteindre le rang Or I.',      xp: 600,  t: c => c.rankIdx >= 6 },
+        { id: 'rank_platine', icon: '💠', name: 'Ligue Platine',  desc: 'Atteindre le rang Platine I.', xp: 2000, t: c => c.rankIdx >= 9 },
+        { id: 'rank_diamant', icon: '💎', name: 'Ligue Diamant',  desc: 'Atteindre le rang Diamant I.', xp: 5000, t: c => c.rankIdx >= 12 },
+        { id: 'rank_maitre',  icon: '🏆', name: 'Maître',         desc: 'Atteindre le rang Maître.',    xp: 10000, t: c => c.rankIdx >= 15 },
+        { id: 'rank_legende', icon: '🌕', name: 'Légende',        desc: 'Atteindre le rang Légende.',   xp: 0,    t: c => c.rankIdx >= 17 },
+        // — Assiduité —
+        { id: 'play_1h',  icon: '⏱️', name: 'Accro',    desc: '1 h de jeu.',  xp: 300,  t: (c, st) => st.playSeconds >= 3600 },
+        { id: 'play_10h', icon: '🕰️', name: 'Vétéran',  desc: '10 h de jeu.', xp: 2500, t: (c, st) => st.playSeconds >= 36000 },
+        { id: 'pioneer',  icon: '🧭', name: 'Pionnier', desc: 'A joué à la première version de Crypto Tycoon.', xp: 500, secret: true },
+    ];
+    const ACH_MAP = {}; ACHIEVEMENTS.forEach(a => ACH_MAP[a.id] = a);
 
     const TIMEFRAMES = [
         { s: 15,  label: '15s' },
@@ -116,9 +220,19 @@
         luxury: {},     // itemId -> true
         businesses: [], // [{ uid, type, name, level, invested }]
         gameTime: 0,
+        career: freshCareer(),
     };
+    function freshCareer() {
+        return {
+            xp: 0, level: 1, peakNW: START_CASH, rankIdx: 0, ach: {}, pioneer: null,
+            stats: { buys: 0, sells: 0, wins: 0, losses: 0, streak: 0, bestStreak: 0, volume: 0,
+                     bizCreated: 0, bizUpgrades: 0, luxBought: 0, memeProfit: 0, playSeconds: 0 },
+        };
+    }
+    let lastNews = null;   // { id, up, t } : dernière news (succès « Sur la news »)
     const coins = {};   // id -> { price, momentum, bias, nextBiasAt, volBase, ticks[] }
     let currentAsset = 'BTC';
+    let activeView = 'market';
     let timeframe = 30;
     let speed = 1;
     let chartMode = 'candle';
@@ -226,6 +340,7 @@
         let logMove = 0.04 + Math.random() * 0.16;         // ≈ 4 à 20 %
         if (cfg.meme) logMove = 0.08 + Math.random() * 0.35; // meme : 8 à 43 %
         a.momentum += (up ? 1 : -1) * logMove * MOM_K;
+        lastNews = { id: a.assetId, up, t: gameTime() };
         pushNews(cfg, up, logMove);
         nextEventAt = gameTime() + 60 + Math.random() * 120;
     }
@@ -267,9 +382,11 @@
     }
 
     /* ================= ÉCONOMIE ================= */
+    // Valeur nette = liquide + positions + valeur de revente des business (50 % de l'investi).
     function netWorth() {
         let v = state.cash;
         for (const id in state.holdings) v += state.holdings[id].qty * coins[id].price;
+        for (const b of state.businesses) v += bizSellValue(b);
         return v;
     }
     function passiveIncome() {
@@ -277,13 +394,26 @@
         for (const b of state.businesses) s += bizIncome(b);
         return s;
     }
-    function bizIncome(b) { return BTYPE_MAP[b.type].income * b.level; }
-    function bizUpgradeCost(b) { return BTYPE_MAP[b.type].cost * b.level; }
+    // Bonus de carrière : +1 % de revenu passif par niveau au-delà du premier.
+    function levelBonus() { return 1 + 0.01 * (state.career.level - 1); }
+    function milestoneMult(L) { let m = 1; for (const [l, x] of BIZ_MILESTONES) if (L >= l) m *= x; return m; }
+    function bizIncomeAt(bt, L) { return bt.income * L * milestoneMult(L) * levelBonus(); }
+    function bizIncome(b) { return bizIncomeAt(BTYPE_MAP[b.type], b.level); }
+    function bizUpgradeCost(b) { return BTYPE_MAP[b.type].cost * Math.pow(BIZ_UP_GROWTH, b.level); }
+    function bizCreateCost(type) {
+        const n = state.businesses.filter(b => b.type === type).length;
+        return BTYPE_MAP[type].cost * Math.pow(BIZ_CREATE_GROWTH, n);
+    }
     function bizSellValue(b) { return Math.round(b.invested * 0.5); }
-    function rankFor(nw) {
-        let r = RANKS[0];
-        for (const rk of RANKS) if (nw >= rk.min) r = rk;
+    function maxBizLevel() { return state.businesses.reduce((m, b) => Math.max(m, b.level), 0); }
+    function oldRankFor(nw) {
+        let r = OLD_RANKS[0];
+        for (const rk of OLD_RANKS) if (nw >= rk.min) r = rk;
         return r;
+    }
+    function bizImg(bt, alt) {
+        return bt.img ? `<img src="${bt.img}" alt="${escapeHtml(alt)}" loading="lazy">`
+                      : `<div class="item-emoji" aria-hidden="true">${bt.emoji}</div>`;
     }
     function gameTime() { return state.gameTime; }
 
@@ -298,6 +428,8 @@
         const newAvg = (h.qty * h.avg + amt) / newQty;
         state.holdings[currentAsset] = { qty: newQty, avg: newAvg };
         state.cash -= amt;
+        const st = state.career.stats;
+        st.buys++; st.volume += amt;
         toast(`Acheté ${fmtQty(qty)} ${currentAsset} pour ${fmtMoney(amt)}`, 'good');
         afterTrade();
     }
@@ -316,10 +448,32 @@
         if (newQty < 1e-12) delete state.holdings[currentAsset];
         else state.holdings[currentAsset] = { qty: newQty, avg: h.avg };
         toast(`Vendu ${fmtQty(qty)} ${currentAsset} pour ${fmtMoney(proceeds)}`, 'good');
+        recordSale(currentAsset, qty * h.avg, proceeds);
         afterTrade();
     }
     function afterTrade() {
+        checkAchievements();
         refreshPortfolio(); refreshTradePanel(); refreshHeader(); save();
+    }
+    // Bilan d'une vente : statistiques, XP et succès de trading.
+    // Anti-farm : un trade ne compte (XP, gagnant/perdant) que s'il pèse ≥ 0,5 % de la fortune.
+    function recordSale(id, cost, proceeds) {
+        const st = state.career.stats;
+        st.sells++; st.volume += proceeds;
+        const profit = proceeds - cost, pct = cost > 0 ? profit / cost : 0;
+        if (proceeds < Math.max(1, netWorth() * 0.005)) return;
+        if (profit > 0) {
+            st.wins++; st.streak++; st.bestStreak = Math.max(st.bestStreak, st.streak);
+            if (ASSET_MAP[id].meme) st.memeProfit += profit;
+            gainXp(8 + 3 * Math.log2(1 + profit));
+            if (pct >= 0.5) unlock('trade_50');
+            if (pct >= 9) unlock('trade_x10');
+            if (lastNews && lastNews.id === id && lastNews.up && gameTime() - lastNews.t <= 120) unlock('news_trader');
+        } else {
+            st.losses++; st.streak = 0;
+            gainXp(2);
+            if (pct <= -0.5) unlock('paper_hands');
+        }
     }
 
     /* ================= ACHATS (luxe, aucun revenu) ================= */
@@ -329,7 +483,10 @@
         if (state.cash < it.cost) return toast(`Pas assez de liquide pour « ${it.name} ».`, 'bad');
         state.cash -= it.cost;
         state.luxury[id] = true;
+        state.career.stats.luxBought++;
+        gainXp(10 + 5 * Math.log2(it.cost));
         toast(`🛍️ ${it.name} acheté !`, 'good');
+        checkAchievements();
         refreshLuxury(); refreshHeader(); save();
     }
     function buildLuxury() {
@@ -376,25 +533,37 @@
     /* ================= BUSINESS (revenu passif + gestion) ================= */
     function createBusiness(type, name) {
         const bt = BTYPE_MAP[type];
-        if (state.cash < bt.cost) return toast('Liquide insuffisant.', 'bad');
+        if (state.career.level < bt.lvl) return toast(`🔒 ${bt.name} : niveau ${bt.lvl} requis.`, 'bad');
+        const cost = bizCreateCost(type);
+        if (state.cash < cost) return toast('Liquide insuffisant.', 'bad');
         const finalName = (name || '').trim() || bt.name;
-        state.cash -= bt.cost;
+        state.cash -= cost;
         state.businesses.push({
             uid: 'b' + Date.now() + Math.floor(Math.random() * 1000),
-            type, name: finalName, level: 1, invested: bt.cost,
+            type, name: finalName, level: 1, invested: cost,
         });
-        toast(`💼 « ${finalName} » créé ! +${fmtMoney(bt.income)}/s`, 'good');
+        state.career.stats.bizCreated++;
+        gainXp(10 + 4 * Math.log2(cost));
+        toast(`💼 « ${finalName} » créé ! +${fmtMoney(bizIncomeAt(bt, 1))}/s`, 'good');
+        checkAchievements();
         refreshBusiness(); refreshHeader(); save();
     }
     function upgradeBusiness(uid) {
         const b = state.businesses.find(x => x.uid === uid);
         if (!b) return;
+        if (b.level >= BIZ_MAX_LEVEL) return toast('Niveau maximum atteint.', 'bad');
         const cost = bizUpgradeCost(b);
         if (state.cash < cost) return toast('Liquide insuffisant pour améliorer.', 'bad');
+        const before = bizIncome(b);
         state.cash -= cost;
         b.level++;
         b.invested += cost;
-        toast(`⬆️ ${b.name} → niveau ${b.level} (+${fmtMoney(BTYPE_MAP[b.type].income)}/s)`, 'good');
+        state.career.stats.bizUpgrades++;
+        gainXp(3 + 2 * Math.log2(cost));
+        const ms = BIZ_MILESTONES.find(([l]) => l === b.level);
+        toast(ms ? `🎉 ${b.name} → niveau ${b.level} : palier atteint, revenu ×${ms[1]} !`
+                 : `⬆️ ${b.name} → niveau ${b.level} (+${fmtMoney(bizIncome(b) - before)}/s)`, 'good');
+        checkAchievements();
         refreshBusiness(); refreshHeader(); save();
     }
     function renameBusiness(uid, name) {
@@ -403,6 +572,7 @@
         const finalName = (name || '').trim();
         if (finalName) b.name = finalName;
         toast(`✏️ Renommé en « ${b.name} »`, 'good');
+        unlock('branding');
         refreshBusiness(); save();
     }
     function sellBusiness(uid) {
@@ -420,14 +590,29 @@
         BUSINESS_TYPES.forEach(bt => {
             const card = document.createElement('div');
             card.className = 'item-card biz-type-card'; card.dataset.type = bt.id;
-            card.innerHTML = `<div class="item-img"><img src="${bt.img}" alt="${bt.name}" loading="lazy"><span class="item-cat">Business</span></div>
+            card.innerHTML = `<div class="item-img">${bizImg(bt, bt.name)}<span class="item-cat">Business</span></div>
                 <div class="item-body">
                     <span class="item-name">${bt.name}</span>
-                    <div class="item-meta"><span class="im-cost">${fmtMoney(bt.cost)}</span><span class="im-income">+${fmtMoney(bt.income)}/s</span></div>
+                    <div class="item-meta"><span class="im-cost"></span><span class="im-income"></span></div>
                     <button class="item-buy">Créer</button>
                 </div>`;
-            card.onclick = () => openCreateModal(bt.id);
+            card.onclick = () => {
+                if (state.career.level < bt.lvl) return toast(`🔒 ${bt.name} : débloqué au niveau ${bt.lvl}.`, 'bad');
+                openCreateModal(bt.id);
+            };
             grid.appendChild(card);
+        });
+        refreshBizTypes();
+    }
+    // Coûts (croissants avec le nombre d'exemplaires) et verrous de niveau des types de business.
+    function refreshBizTypes() {
+        document.querySelectorAll('#bizTypesGrid .biz-type-card').forEach(card => {
+            const bt = BTYPE_MAP[card.dataset.type];
+            const locked = state.career.level < bt.lvl;
+            card.classList.toggle('locked', locked);
+            card.querySelector('.im-cost').textContent = fmtMoney(bizCreateCost(bt.id));
+            card.querySelector('.im-income').textContent = '+' + fmtMoney(bizIncomeAt(bt, 1)) + '/s';
+            card.querySelector('.item-buy').textContent = locked ? `🔒 Niveau ${bt.lvl}` : 'Créer';
         });
     }
     function buildMyBiz() {
@@ -436,20 +621,22 @@
             const bt = BTYPE_MAP[b.type];
             const card = document.createElement('div');
             card.className = 'item-card biz-card'; card.dataset.uid = b.uid;
-            card.innerHTML = `<div class="item-img"><img src="${bt.img}" alt="${escapeHtml(b.name)}" loading="lazy"><span class="item-cat">Business</span></div>
+            const maxed = b.level >= BIZ_MAX_LEVEL;
+            const next = BIZ_MILESTONES.find(([l]) => l > b.level);
+            card.innerHTML = `<div class="item-img">${bizImg(bt, b.name)}<span class="item-cat">Business</span></div>
                 <div class="item-body">
                     <span class="item-name">${escapeHtml(b.name)}</span>
                     <span class="biz-type-name">${bt.name}</span>
-                    <span class="biz-level">Niveau ${b.level}</span>
+                    <span class="biz-level">Niveau ${b.level}${next ? ` · palier ×${next[1]} au niv. ${next[0]}` : ''}</span>
                     <div class="item-meta"><span class="im-income">+${fmtMoney(bizIncome(b))}/s</span></div>
                     <div class="biz-actions">
-                        <button class="biz-btn up" data-act="up">⬆️ Améliorer (${fmtMoney(bizUpgradeCost(b))})</button>
+                        <button class="biz-btn up" data-act="up">${maxed ? '🏁 Niveau max' : `⬆️ Améliorer (${fmtMoney(bizUpgradeCost(b))})`}</button>
                         <button class="biz-btn" data-act="rename">✏️ Renommer</button>
                         <button class="biz-btn sell full" data-act="sell">💰 Revendre (${fmtMoney(bizSellValue(b))})</button>
                     </div>
                 </div>`;
             const upBtn = card.querySelector('[data-act="up"]');
-            upBtn.disabled = state.cash < bizUpgradeCost(b);
+            upBtn.disabled = maxed || state.cash < bizUpgradeCost(b);
             upBtn.onclick = () => upgradeBusiness(b.uid);
             card.querySelector('[data-act="rename"]').onclick = () => openRenameModal(b.uid);
             card.querySelector('[data-act="sell"]').onclick = () => sellBusiness(b.uid);
@@ -458,6 +645,7 @@
     }
     function refreshBusiness() {
         buildMyBiz();
+        refreshBizTypes();
         el('myBizEmpty').style.display = state.businesses.length ? 'none' : 'block';
         el('bizIncome').textContent = fmtMoney(passiveIncome()) + '/s';
         el('bizCount').textContent = state.businesses.length;
@@ -469,15 +657,15 @@
     function openCreateModal(type) {
         modalMode = 'create'; modalType = type; modalUid = null;
         const bt = BTYPE_MAP[type];
-        el('bizModalImg').src = bt.img;
+        setModalImg(bt);
         el('bizModalTitle').textContent = 'Créer un business';
-        el('bizModalDesc').textContent = `${bt.name} — démarre à ${fmtMoney(bt.income)}/s. Donne un nom à ton entreprise !`;
-        el('bizModalCost').textContent = fmtMoney(bt.cost);
-        el('bizModalIncome').textContent = fmtMoney(bt.income);
+        el('bizModalDesc').textContent = `${bt.name} — démarre à ${fmtMoney(bizIncomeAt(bt, 1))}/s. Donne un nom à ton entreprise !`;
+        el('bizModalCost').textContent = fmtMoney(bizCreateCost(type));
+        el('bizModalIncome').textContent = fmtMoney(bizIncomeAt(bt, 1));
         el('bizNameInput').value = '';
         el('bizNameInput').placeholder = bt.name;
         el('bizModalConfirm').textContent = 'Créer';
-        el('bizModalConfirm').disabled = state.cash < bt.cost;
+        el('bizModalConfirm').disabled = state.cash < bizCreateCost(type);
         el('bizModal').classList.add('show');
         el('bizNameInput').focus();
     }
@@ -486,7 +674,7 @@
         if (!b) return;
         modalMode = 'rename'; modalType = b.type; modalUid = uid;
         const bt = BTYPE_MAP[b.type];
-        el('bizModalImg').src = bt.img;
+        setModalImg(bt);
         el('bizModalTitle').textContent = 'Renommer le business';
         el('bizModalDesc').textContent = `${bt.name} — niveau ${b.level}, ${fmtMoney(bizIncome(b))}/s.`;
         el('bizModalCost').textContent = fmtMoney(bizUpgradeCost(b));
@@ -498,6 +686,16 @@
         el('bizNameInput').focus();
     }
     function closeModal() { el('bizModal').classList.remove('show'); }
+    function setModalImg(bt) {
+        const img = el('bizModalImg');
+        img.style.display = bt.img ? '' : 'none';
+        if (bt.img) img.src = bt.img;
+        let em = img.parentNode.querySelector('.item-emoji');
+        if (!bt.img) {
+            if (!em) { em = document.createElement('div'); em.className = 'item-emoji'; img.parentNode.appendChild(em); }
+            em.textContent = bt.emoji;
+        } else if (em) em.remove();
+    }
 
     /* ================= RENDU ================= */
     function refreshHeader() {
@@ -505,9 +703,137 @@
         el('cash').textContent = fmtMoney(state.cash);
         el('netWorth').textContent = fmtMoney(nw);
         el('income').textContent = fmtMoney(passiveIncome()) + '/s';
-        const rk = rankFor(nw);
+        const rk = RANKS[state.career.rankIdx];
         el('rankBadge').textContent = rk.emoji + ' ' + rk.name;
         el('playerName').textContent = player;
+        refreshCareerHeader();
+    }
+
+    /* ================= CARRIÈRE : XP, NIVEAUX, RANGS, SUCCÈS ================= */
+    function gainXp(n) {
+        const c = state.career;
+        n = Math.round(n);
+        if (c.level >= MAX_LEVEL || n <= 0) return;
+        c.xp += n;
+        let up = false;
+        while (c.level < MAX_LEVEL && c.xp >= xpForLevel(c.level)) { c.xp -= xpForLevel(c.level); c.level++; up = true; }
+        if (c.level >= MAX_LEVEL) c.xp = 0;
+        if (up) {
+            const unlocked = BUSINESS_TYPES.filter(bt => bt.lvl === c.level).map(bt => bt.name);
+            celebrate(`⭐ Niveau ${c.level} ! Revenu passif +${c.level - 1} %` + (unlocked.length ? ` · Débloqué : ${unlocked.join(', ')}` : ''), 'level');
+            refreshBizTypes();
+        }
+        refreshCareerHeader();
+    }
+    function unlock(id) {
+        const c = state.career, a = ACH_MAP[id];
+        if (!a || c.ach[id]) return;
+        c.ach[id] = Date.now();
+        celebrate(`${a.icon} Succès : ${a.name}` + (a.xp ? ` (+${a.xp} XP)` : ''), 'ach');
+        gainXp(a.xp);
+        if (activeView === 'progress') refreshProgress();
+    }
+    // Vérifie les succès « à condition » et les rangs (après une action et toutes les 2 s).
+    function checkAchievements() {
+        const c = state.career;
+        for (const a of ACHIEVEMENTS) if (a.t && !c.ach[a.id] && a.t(c, c.stats)) unlock(a.id);
+        updateRank();
+    }
+    const REQ = {
+        wins:     { label: n => `${n} trades gagnants`, val: () => state.career.stats.wins },
+        biz:      { label: n => `${n} business`, val: () => state.businesses.length },
+        bizLevel: { label: n => `Un business niveau ${n}`, val: () => maxBizLevel() },
+        lux:      { label: n => n >= LUXURY.length ? 'Tous les objets de luxe' : `${n} objets de luxe`, val: () => Object.keys(state.luxury).length },
+        ach:      { label: n => `${n} succès`, val: () => Object.keys(state.career.ach).length },
+    };
+    function rankChecks(r) {
+        const c = state.career;
+        const list = [
+            { label: `Fortune record ${fmtMoney(r.nw)}`, ok: c.peakNW >= r.nw, cur: fmtMoney(c.peakNW) },
+            { label: `Niveau ${r.lvl}`, ok: c.level >= r.lvl, cur: 'niv. ' + c.level },
+        ];
+        if (r.req) {
+            const q = REQ[r.req[0]], v = q.val();
+            list.push({ label: q.label(r.req[1]), ok: v >= r.req[1], cur: String(v) });
+        }
+        return list;
+    }
+    function updateRank() {
+        const c = state.career;
+        let moved = false;
+        while (c.rankIdx < RANKS.length - 1 && rankChecks(RANKS[c.rankIdx + 1]).every(x => x.ok)) {
+            c.rankIdx++; moved = true;
+            const r = RANKS[c.rankIdx];
+            celebrate(`${r.emoji} Nouveau rang : ${r.name} !`, 'rank');
+            gainXp(50 * c.rankIdx);
+        }
+        if (moved) { refreshHeader(); save(); if (activeView === 'progress') refreshProgress(); }
+    }
+    function refreshCareerHeader() {
+        const c = state.career;
+        const need = xpForLevel(c.level);
+        el('levelNum').textContent = 'Niv. ' + c.level;
+        el('levelFill').style.width = (c.level >= MAX_LEVEL ? 100 : Math.min(100, c.xp / need * 100)) + '%';
+        el('levelChip').title = c.level >= MAX_LEVEL ? 'Niveau maximum' : `${c.xp} / ${need} XP`;
+        el('achCount').textContent = Object.keys(c.ach).length;
+    }
+
+    /* ----- Célébrations (niveau, rang, succès) : file de bulles en haut à droite ----- */
+    function celebrate(msg, kind) {
+        const box = el('celebrate');
+        const d = document.createElement('div');
+        d.className = 'celebrate-item ' + (kind || '');
+        d.textContent = msg;
+        box.appendChild(d);
+        while (box.children.length > 4) box.firstChild.remove();
+        requestAnimationFrame(() => d.classList.add('show'));
+        setTimeout(() => { d.classList.remove('show'); setTimeout(() => d.remove(), 400); }, 4200);
+    }
+
+    /* ----- Onglet Progression ----- */
+    let achFilter = 'all';
+    function refreshProgress() {
+        const c = state.career, st = c.stats;
+        const need = xpForLevel(c.level);
+        el('plLevel').textContent = c.level;
+        el('plRing').style.setProperty('--p', c.level >= MAX_LEVEL ? 100 : Math.round(c.xp / need * 100));
+        const rk = RANKS[c.rankIdx];
+        el('progRank').textContent = rk.emoji + ' ' + rk.name;
+        el('xpFill').style.width = (c.level >= MAX_LEVEL ? 100 : Math.min(100, c.xp / need * 100)) + '%';
+        el('xpText').textContent = c.level >= MAX_LEVEL ? 'Niveau maximum atteint 🌠' : `${c.xp.toLocaleString('fr-FR')} / ${need.toLocaleString('fr-FR')} XP vers le niveau ${c.level + 1}`;
+        el('progBonus').textContent = `Bonus de carrière : +${c.level - 1} % de revenu passif · Fortune record : ${fmtMoney(c.peakNW)}`;
+        const pb = el('pioneerBadge');
+        pb.hidden = !c.pioneer;
+        if (c.pioneer) pb.textContent = `🧭 Pionnier — ancien rang ${c.pioneer.emoji} ${c.pioneer.name}`;
+
+        // prochain rang : conditions à remplir
+        const nx = RANKS[c.rankIdx + 1];
+        el('progNext').innerHTML = nx
+            ? `<div class="pn-title">Prochain rang : <b>${nx.emoji} ${nx.name}</b></div>` +
+              rankChecks(nx).map(x => `<div class="pn-req ${x.ok ? 'ok' : ''}"><span>${x.ok ? '✅' : '⬜'} ${escapeHtml(x.label)}</span><em>${escapeHtml(x.cur)}</em></div>`).join('')
+            : '<div class="pn-title">🌕 Rang maximum atteint. Respect.</div>';
+
+        el('rankLadder').innerHTML = RANKS.map((r, i) =>
+            `<div class="rank-step ${i < c.rankIdx ? 'done' : i === c.rankIdx ? 'current' : 'todo'}" title="${escapeHtml(r.name)} — fortune ${fmtMoney(r.nw)}, niveau ${r.lvl}">
+                <span class="rs-emoji">${r.emoji}</span><span class="rs-name">${r.name}</span><span class="rs-min">${fmtMoney(r.nw)}</span></div>`).join('');
+
+        const winrate = st.wins + st.losses ? Math.round(st.wins / (st.wins + st.losses) * 100) + ' %' : '—';
+        const stats = [
+            ['Trades gagnants', st.wins], ['Trades perdants', st.losses], ['Taux de réussite', winrate],
+            ['Meilleure série', st.bestStreak], ['Volume échangé', fmtMoney(st.volume)], ['Business créés', st.bizCreated],
+            ['Améliorations', st.bizUpgrades], ['Objets de luxe', Object.keys(state.luxury).length], ['Temps de jeu', humanize(st.playSeconds)],
+        ];
+        el('statGrid').innerHTML = stats.map(([k, v]) => `<div class="stat-box"><span>${k}</span><b>${v}</b></div>`).join('');
+
+        const got = Object.keys(c.ach).length;
+        el('achProgress').textContent = `${got} / ${ACHIEVEMENTS.length}`;
+        el('achGrid').innerHTML = ACHIEVEMENTS.filter(a => achFilter === 'all' || (achFilter === 'got') === !!c.ach[a.id]).map(a => {
+            const ok = !!c.ach[a.id], hide = a.secret && !ok;
+            return `<div class="ach-card ${ok ? 'got' : ''}">
+                <span class="ach-icon">${hide ? '❔' : a.icon}</span>
+                <div class="ach-body"><b>${hide ? 'Succès secret' : escapeHtml(a.name)}</b><span>${hide ? '???' : escapeHtml(a.desc)}</span></div>
+                <em class="ach-xp">${a.xp ? '+' + a.xp + ' XP' : ''}</em></div>`;
+        }).join('') || '<div class="portfolio-empty">Rien ici pour l\'instant.</div>';
     }
 
     function buildAssetList() {
@@ -781,7 +1107,7 @@
             const data = {
                 cash: state.cash, holdings: state.holdings,
                 luxury: state.luxury, businesses: state.businesses,
-                gameTime: state.gameTime, coins: {},
+                gameTime: state.gameTime, career: state.career, coins: {},
             };
             for (const id in coins) {
                 const c = coins[id];
@@ -798,6 +1124,9 @@
             state.cash = d.cash; state.holdings = d.holdings || {};
             state.luxury = d.luxury || {}; state.businesses = d.businesses || [];
             state.gameTime = d.gameTime || 0;
+            const fc = freshCareer();
+            state.career = Object.assign(fc, d.career || {});
+            state.career.stats = Object.assign(fc.stats, (d.career && d.career.stats) || {});
             for (const id in d.coins) {
                 const c = coins[id]; if (!c) continue;
                 const s = d.coins[id];
@@ -805,6 +1134,27 @@
             }
             return true;
         } catch (e) { return false; }
+    }
+
+    // Ancienne version (v3) : tout le monde repart de 10 €, avec le badge « Pionnier »
+    // et l'ancien rang atteint (calculé sur l'ancienne valeur nette : liquide + positions).
+    function migrateOldSave() {
+        for (const k of OLD_SAVE_KEYS) {
+            try {
+                const raw = localStorage.getItem(k);
+                if (!raw) continue;
+                const d = JSON.parse(raw);
+                let nw = Number(d.cash) || 0;
+                for (const id in d.holdings || {}) {
+                    const p = d.coins && d.coins[id] ? Number(d.coins[id].price) : (ASSET_MAP[id] ? ASSET_MAP[id].base : 0);
+                    nw += (Number(d.holdings[id].qty) || 0) * (p || 0);
+                }
+                const r = oldRankFor(nw);
+                state.career.pioneer = { name: r.name, emoji: r.emoji, nw: Math.round(nw) };
+                return true;
+            } catch (e) { /* ancienne sauvegarde illisible : on l'ignore */ }
+        }
+        return false;
     }
 
     /* ================= FIREBASE (classement hub) ================= */
@@ -827,7 +1177,8 @@
     }
     function saveScore() {
         if (!db || player === 'Invité') return;
-        const score = Math.round(netWorth());
+        // score = fortune record (ne baisse pas lors d'un krach)
+        const score = Math.round(Math.max(state.career.peakNW, netWorth()));
         if (score <= 0) return;
         db.ref(FIREBASE_PATH).orderByChild('name').equalTo(player).once('value', snap => {
             let key = null, old = 0;
@@ -847,7 +1198,11 @@
         for (const id in coins) stepAsset(coins[id], ASSET_MAP[id], state.gameTime);
         state.gameTime++;
         maybeEvent();
-        state.cash += passiveIncome();
+        // ×2/×4/×8 accélère le marché, pas le revenu passif ni le temps de jeu (sinon tout se finit en 20 min)
+        state.cash += passiveIncome() / speed;
+        state.career.stats.playSeconds += 1 / speed;
+        const nw = netWorth();
+        if (nw > state.career.peakNW) state.career.peakNW = nw;
         refreshHeader(); refreshAssetList(); refreshTradePanel(); refreshPortfolio(); drawChart();
     }
 
@@ -867,8 +1222,10 @@
 
         ASSETS.forEach(c => { coins[c.id] = initAsset(c); coins[c.id].assetId = c.id; });
 
+        let migrated = false;
         if (!load()) {
             for (let i = 0; i < PREFILL; i++) { for (const id in coins) stepAsset(coins[id], ASSET_MAP[id], state.gameTime); state.gameTime++; }
+            migrated = migrateOldSave();
         }
 
         buildAssetList();
@@ -881,8 +1238,18 @@
             t.onclick = () => {
                 document.querySelectorAll('.tab').forEach(x => x.classList.toggle('active', x === t));
                 document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === 'view-' + t.dataset.view));
+                activeView = t.dataset.view;
                 if (t.dataset.view === 'achats') refreshLuxury();
                 if (t.dataset.view === 'business') refreshBusiness();
+                if (t.dataset.view === 'progress') refreshProgress();
+            };
+        });
+        el('rankBadge').onclick = el('levelChip').onclick = () => document.querySelector('.tab[data-view="progress"]').click();
+        document.querySelectorAll('#achFilter .cf-btn').forEach(b => {
+            b.onclick = () => {
+                achFilter = b.dataset.f;
+                document.querySelectorAll('#achFilter .cf-btn').forEach(x => x.classList.toggle('active', x === b));
+                refreshProgress();
             };
         });
         document.querySelectorAll('.speed-btn').forEach(b => {
@@ -931,8 +1298,7 @@
         el('bizModalConfirm').onclick = () => {
             const name = el('bizNameInput').value.trim();
             if (modalMode === 'create') {
-                const bt = BTYPE_MAP[modalType];
-                if (state.cash < bt.cost) return toast('Liquide insuffisant.', 'bad');
+                if (state.cash < bizCreateCost(modalType)) return toast('Liquide insuffisant.', 'bad');
                 createBusiness(modalType, name);
             } else {
                 renameBusiness(modalUid, name);
@@ -948,6 +1314,14 @@
         drawChart();
         startLoop();
 
+        if (migrated) {
+            unlock('pioneer');
+            const pi = state.career.pioneer;
+            celebrate(`🆕 Nouvelle version : tout le monde repart de 10 €. Badge Pionnier (ancien rang ${pi.emoji} ${pi.name}) !`, 'rank');
+            save();
+        }
+        checkAchievements();
+        setInterval(checkAchievements, 2000);
         setInterval(save, 15000);
         setInterval(saveScore, 30000);
         window.addEventListener('beforeunload', () => { save(); saveScore(); });

@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=4">
 </head>
 <body>
 <a href="https://joxiagame.github.io/Joxia-Games/" id="joxia-quit" style="position:fixed;top:8px;left:8px;z-index:2147483647;display:flex;align-items:center;gap:6px;background:rgba(20,22,30,.86);color:#fff;border:1px solid rgba(255,255,255,.3);border-radius:10px;padding:7px 11px;font:700 13px system-ui,-apple-system,sans-serif;text-decoration:none;box-shadow:0 3px 12px rgba(0,0,0,.45);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)">🏠 Quitter</a>
@@ -36,7 +36,8 @@
             <span class="t-label">Revenu passif</span>
             <b id="income">€0/s</b>
         </div>
-        <div class="top-rank" id="rankBadge">💼 Débutant</div>
+        <button class="top-level" id="levelChip" title="Progression"><span id="levelNum">Niv. 1</span><i><b id="levelFill"></b></i></button>
+        <button class="top-rank" id="rankBadge" title="Voir ta progression">🥉 Bronze I</button>
 
         <div class="speed-group" role="group" aria-label="Vitesse de simulation">
             <button class="speed-btn active" data-speed="1">1×</button>
@@ -51,6 +52,7 @@
         <button class="tab active" data-view="market">📈 Marché</button>
         <button class="tab" data-view="achats">🛍️ Achats <span class="tab-badge" id="ownedCount">0</span></button>
         <button class="tab" data-view="business">💼 Business <span class="tab-badge" id="businessCount">0</span></button>
+        <button class="tab" data-view="progress">🏆 Progression <span class="tab-badge" id="achCount">0</span></button>
     </nav>
 
     <main>
@@ -172,7 +174,38 @@
             <div id="myBizEmpty" class="portfolio-empty">Aucun business pour l'instant. Crée le premier ci-dessus ! 🚀</div>
             <div class="shop-grid" id="myBizGrid"></div>
         </section>
+
+        <!-- ===== VUE PROGRESSION (niveau, rangs, succès) ===== -->
+        <section id="view-progress" class="view">
+            <div class="prog-hero">
+                <div class="pl-ring" id="plRing"><b id="plLevel">1</b><span>niveau</span></div>
+                <div class="prog-main">
+                    <div class="prog-rank" id="progRank">🥉 Bronze I</div>
+                    <div class="xp-bar"><div class="xp-fill" id="xpFill"></div></div>
+                    <div class="xp-text" id="xpText"></div>
+                    <div class="prog-bonus" id="progBonus"></div>
+                    <div class="pioneer" id="pioneerBadge" hidden></div>
+                </div>
+                <div class="prog-next" id="progNext"></div>
+            </div>
+
+            <h2 class="section-sub">🎖️ Rangs</h2>
+            <div class="rank-ladder" id="rankLadder"></div>
+
+            <h2 class="section-sub">📊 Statistiques</h2>
+            <div class="stat-grid" id="statGrid"></div>
+
+            <h2 class="section-sub">🏆 Succès <span id="achProgress"></span></h2>
+            <div class="cat-filter ach-filter" id="achFilter">
+                <button class="cf-btn active" data-f="all">Tous</button>
+                <button class="cf-btn" data-f="got">Débloqués</button>
+                <button class="cf-btn" data-f="todo">À faire</button>
+            </div>
+            <div class="ach-grid" id="achGrid"></div>
+        </section>
     </main>
+
+    <div class="celebrate" id="celebrate" aria-live="polite"></div>
 
     <!-- ===== BARRE DE NEWS ===== -->
     <footer class="newsbar">
@@ -202,7 +235,7 @@
     <!-- Firebase (classement hub) -->
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
-    <script src="script.js"></script>
+    <script src="script.js?v=4"></script>
 <script type="module" src="https://joxiagame.github.io/Joxia-Games/tracker.js?game=CRYPTO"></script>
 </body>
 </html>
