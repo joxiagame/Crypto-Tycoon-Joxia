@@ -30,6 +30,11 @@ Jeu de trading **crypto + matières premières** avec courbes lisses et réalist
    - **Régimes de marché** (toutes les 20-40 min de marché) : krach (annoncé 1 min avant par des rumeurs), bull run (annoncé), rug pull sur DOGE/PEPE (sans prévenir, -75 à -90 %). Les matières premières sont les valeurs refuges.
    - **🪙 Halving** (prestige) : niveau 30 et 100 M€ de fortune dans la partie → retour à zéro contre des Satoshis (10 × √(fortune record / 100 M€)) : +2 % de revenu passif et de hashrate par Satoshi, capital de départ 10 € + 10 € par Satoshi. Niveau, rang, succès et fortune record conservés.
    - 14 succès de plus (68 au total).
+6. **Lot C (v6)** — compétition :
+   - **Saisons hebdomadaires** (saison 1 = lundi 5 octobre 2026) : chaque lundi, liquide / actifs / business / luxe / minage / staking / positions repartent de zéro (10 € + 10 € par Satoshi). Niveau, rang, succès, Satoshis et fortune record sont conservés. Score de saison → `games/CRYPTO_S<n>/scores`, classement en direct dans l'onglet 🏟️ Saison.
+   - **6 ligues** 🥉 Bronze → 🥈 Argent → 🥇 Or → 💠 Platine → 💎 Diamant → 👑 Élite : promotion / maintien / relégation selon la fortune record de la saison ; récompense 0 / 1 / 2 / 4 / 7 / 12 Satoshis (+1 si promotion), podium +5 / +3 / +2.
+   - **3 missions du jour** (même tirage pour tous, objectifs selon le niveau) : +XP et +2 % de fortune chacune, +1 Satoshi pour les 3, série de jours.
+   - 9 succès de plus (77 au total).
 
 ## Structure
 - `index.html` / `style.css` / `script.js` — le jeu (vanilla)

@@ -247,6 +247,46 @@
         { id: 'halving_5', icon: '♻️', name: 'Cycle maître',      desc: 'Lancer 5 Halvings.',                          xp: 10000, t: c => c.halvings >= 5 },
         { id: 'sats_100',  icon: '🧙', name: 'Satoshi Nakamoto',  desc: 'Posséder 100 Satoshis.',                      xp: 15000, t: c => c.sats >= 100 },
     );
+    /* ===== Lot C : saisons hebdomadaires, ligues, missions du jour ===== */
+    // Saison 1 = semaine du lundi 5 octobre 2026 (0 h, heure de Paris). Nouvelle saison chaque lundi.
+    const SEASON_EPOCH = Date.UTC(2026, 9, 4, 22, 0, 0);
+    const WEEK_MS = 7 * 86400000;
+    // Ligues de saison : maintien = fortune de saison minimale pour rester, promo = pour monter.
+    const LEAGUES = [
+        { emoji: '🥉', name: 'Bronze',  keep: 0,    promo: 1e4,  sats: 0 },
+        { emoji: '🥈', name: 'Argent',  keep: 5e3,  promo: 5e5,  sats: 1 },
+        { emoji: '🥇', name: 'Or',      keep: 2e5,  promo: 2e7,  sats: 2 },
+        { emoji: '💠', name: 'Platine', keep: 1e7,  promo: 1e9,  sats: 4 },
+        { emoji: '💎', name: 'Diamant', keep: 5e8,  promo: 5e10, sats: 7 },
+        { emoji: '👑', name: 'Élite',   keep: 2e10, promo: Infinity, sats: 12 },
+    ];
+    const PODIUM_SATS = [5, 3, 2];   // Satoshis bonus pour le top 3 du classement de saison
+
+    // Missions du jour : 3 tirées chaque jour (même tirage pour tous), objectifs selon le palier de niveau.
+    const MISSIONS = [
+        { id: 'wins',     lvl: 1,  key: 'wins',     t: [3, 5, 8, 12], txt: n => `Gagne ${n} trades` },
+        { id: 'volume',   lvl: 1,  key: 'volume',   t: null,          txt: n => `Échange ${fmtMoney(n)} au total` },
+        { id: 'bizUp',    lvl: 1,  key: 'bizUp',    t: [2, 6, 12, 20], txt: n => `Améliore tes business ${n} fois` },
+        { id: 'metal',    lvl: 1,  key: 'metalWin', t: [1, 2, 3, 4],  txt: n => `Gagne ${n} trade${n > 1 ? 's' : ''} sur les matières premières` },
+        { id: 'big',      lvl: 1,  key: 'bigWin',   t: [3, 5, 8, 10], txt: n => `Réussis un trade à +${n} % ou plus`, max: true },
+        { id: 'play',     lvl: 1,  key: 'playSec',  t: [600, 900, 1200, 1800], txt: n => `Joue ${n / 60} minutes` },
+        { id: 'lux',      lvl: 3,  key: 'lux',      t: [1, 1, 1, 1],  txt: () => 'Achète un objet de luxe', ok: () => Object.keys(state.luxury).length < LUXURY.length },
+        { id: 'stake',    lvl: 12, key: 'stake',    t: [1, 2, 2, 3],  txt: n => `Lance ${n} staking${n > 1 ? 's' : ''}` },
+        { id: 'claim',    lvl: 16, key: 'claim',    t: [1, 2, 3, 3],  txt: n => `Encaisse ton minage ${n} fois` },
+        { id: 'levWin',   lvl: 22, key: 'levWin',   t: [1, 1, 2, 3],  txt: n => `Gagne ${n} trade${n > 1 ? 's' : ''} à levier` },
+    ];
+
+    ACHIEVEMENTS.push(
+        { id: 'season_promo', icon: '⏫', name: 'Promotion',           desc: 'Monter de ligue en fin de saison.',     xp: 1500 },
+        { id: 'league_or',    icon: '🥇', name: 'Saison : ligue Or',   desc: 'Atteindre la ligue Or de saison.',      xp: 2500, t: c => (c.league || 0) >= 2 },
+        { id: 'league_diam',  icon: '💎', name: 'Saison : ligue Diamant', desc: 'Atteindre la ligue Diamant de saison.', xp: 8000, t: c => (c.league || 0) >= 4 },
+        { id: 'league_elite', icon: '👑', name: 'Élite',               desc: 'Atteindre la ligue Élite.',             xp: 15000, t: c => (c.league || 0) >= 5 },
+        { id: 'season_top3',  icon: '🏅', name: 'Podium de saison',    desc: 'Finir dans le top 3 d\'une saison.',    xp: 5000, secret: true },
+        { id: 'seasons_3',    icon: '📅', name: 'Habitué',             desc: 'Terminer 3 saisons.',                   xp: 2000, t: c => (c.seasons || []).length >= 3 },
+        { id: 'missions_10',  icon: '📋', name: 'Missionnaire',        desc: 'Accomplir 10 missions du jour.',        xp: 1000, t: (c, st) => st.missions >= 10 },
+        { id: 'missions_100', icon: '🗂️', name: 'Agent de terrain',    desc: 'Accomplir 100 missions du jour.',       xp: 6000, t: (c, st) => st.missions >= 100 },
+        { id: 'daily_7',      icon: '🔁', name: 'Assidu',              desc: 'Finir toutes les missions 7 jours d\'affilée.', xp: 4000, t: c => (c.dailyBest || 0) >= 7 },
+    );
     const ACH_MAP = {}; ACHIEVEMENTS.forEach(a => ACH_MAP[a.id] = a);
 
     const TIMEFRAMES = [
@@ -273,14 +313,17 @@
         mining: freshMining(),
         stakes: [],   // [{ uid, id, qty, avg, reward, end }] (end en secondes de jeu réel)
         lev: [],      // [{ uid, id, side, lev, margin, entry, qty }]
+        season: null, // { id, peak } : saison en cours et fortune record de la saison
+        daily: null,  // { date, missions: [{ id, key, target, done }], counts: {} }
     };
     function freshMining() { return { rigs: {}, on: true, pending: 0, secs: 0, invested: 0 }; }
     function freshCareer() {
         return {
             xp: 0, level: 1, peakNW: START_CASH, rankIdx: 0, ach: {}, pioneer: null, sats: 0, halvings: 0,
+            league: 0, seasons: [], dailyStreak: 0, dailyBest: 0, lastAllDone: null,
             stats: { buys: 0, sells: 0, wins: 0, losses: 0, streak: 0, bestStreak: 0, volume: 0,
                      bizCreated: 0, bizUpgrades: 0, luxBought: 0, memeProfit: 0, playSeconds: 0,
-                     stakes: 0, minedBTC: 0, levTrades: 0, liquidations: 0 },
+                     stakes: 0, minedBTC: 0, levTrades: 0, liquidations: 0, missions: 0 },
         };
     }
     let lastNews = null;   // { id, up, t } : dernière news (succès « Sur la news »)
@@ -495,6 +538,7 @@
         state.cash -= amt;
         const st = state.career.stats;
         st.buys++; st.volume += amt;
+        dailyAdd('volume', amt);
         toast(`Acheté ${fmtQty(qty)} ${currentAsset} pour ${fmtMoney(amt)}`, 'good');
         afterTrade();
     }
@@ -527,9 +571,13 @@
         const st = state.career.stats;
         st.sells++; st.volume += proceeds;
         const profit = proceeds - cost, pct = cost > 0 ? profit / cost : 0;
+        dailyAdd('volume', proceeds);
         if (proceeds < Math.max(1, netWorth() * 0.005)) return;
         if (profit > 0) {
             st.wins++; st.streak++; st.bestStreak = Math.max(st.bestStreak, st.streak);
+            dailyAdd('wins', 1);
+            if (ASSET_MAP[id].cat === 'matiere') dailyAdd('metalWin', 1);
+            dailyMax('bigWin', pct * 100);
             if (ASSET_MAP[id].meme) st.memeProfit += profit;
             gainXp(8 + 3 * Math.log2(1 + profit));
             if (pct >= 0.5) unlock('trade_50');
@@ -550,6 +598,7 @@
         state.cash -= it.cost;
         state.luxury[id] = true;
         state.career.stats.luxBought++;
+        dailyAdd('lux', 1);
         gainXp(10 + 5 * Math.log2(it.cost));
         toast(`🛍️ ${it.name} acheté !`, 'good');
         checkAchievements();
@@ -625,6 +674,7 @@
         b.level++;
         b.invested += cost;
         state.career.stats.bizUpgrades++;
+        dailyAdd('bizUp', 1);
         gainXp(3 + 2 * Math.log2(cost));
         const ms = BIZ_MILESTONES.find(([l]) => l === b.level);
         toast(ms ? `🎉 ${b.name} → niveau ${b.level} : palier atteint, revenu ×${ms[1]} !`
@@ -1245,6 +1295,7 @@
         if (q <= 0) return toast('Rien à encaisser pour l\'instant.', 'bad');
         addHoldings('BTC', q, coins.BTC.price);   // prix de revient = cours actuel (pas de faux profit)
         state.mining.pending = 0;
+        dailyAdd('claim', 1);
         toast(`₿ ${fmtQty(q)} BTC transférés dans ton portefeuille (${fmtMoney(q * coins.BTC.price)})`, 'good');
         refreshYield(); refreshPortfolio(); refreshHeader(); save();
     }
@@ -1286,6 +1337,7 @@
         state.stakes.push({ uid: 's' + Date.now() + Math.floor(Math.random() * 1000), id, qty, avg: h.avg, reward,
                             end: state.career.stats.playSeconds + term.s, term: term.label });
         state.career.stats.stakes++;
+        dailyAdd('stake', 1);
         gainXp(5 + 2 * Math.log2(1 + value));
         toast(`🔒 ${fmtQty(qty)} ${id} stakés pour ${term.label} (+${fmtQty(reward)} ${id} à l'échéance)`, 'good');
         checkAchievements(); refreshYield(); refreshPortfolio(); refreshTradePanel(); refreshHeader(); save();
@@ -1320,6 +1372,7 @@
         state.lev.push({ uid: 'l' + Date.now() + Math.floor(Math.random() * 1000), id: currentAsset, side: levSide, lev: levX, margin, entry: price, qty: size / price });
         state.career.stats.levTrades++;
         state.career.stats.volume += size;
+        dailyAdd('volume', size);
         toast(`⚡ ${levSide === 'long' ? 'Long' : 'Short'} ×${levX} ouvert sur ${currentAsset} (${fmtMoney(size)})`, 'good');
         afterTrade(); refreshLev();
     }
@@ -1338,6 +1391,7 @@
             toast(`Position fermée : ${proceeds >= x.margin ? '+' : ''}${fmtMoney(proceeds - x.margin)}`, proceeds >= x.margin ? 'good' : 'bad');
             recordSale(x.id, x.margin, proceeds);
             if (proceeds > x.margin) {
+                dailyAdd('levWin', 1);
                 unlock('lev_win');
                 if (x.lev >= 10) unlock('lev_x10');
                 if (x.side === 'short' && regime && regime.type === 'crash') unlock('short_crash');
@@ -1418,8 +1472,7 @@
         if (!confirm(`Lancer le Halving ?\n\nTu repars de zéro (liquide, actifs, business, luxe, minage, staking, positions) et tu gagnes ${gain} Satoshis permanents (+${gain * SAT_BONUS * 100} % de revenu passif et de hashrate, plus de capital de départ).\n\nNiveau, rang, succès et fortune record sont conservés.`)) return;
         const c = state.career;
         c.sats += gain; c.halvings++;
-        state.cash = startCash(); state.holdings = {}; state.luxury = {}; state.businesses = [];
-        state.mining = freshMining(); state.stakes = []; state.lev = []; state.runPeak = state.cash;
+        resetRun();
         celebrate(`🪙 Halving n°${c.halvings} : +${gain} Satoshis ! Revenu +${c.sats * SAT_BONUS * 100} %`, 'rank');
         gainXp(2000 * c.halvings);
         checkAchievements();
@@ -1507,6 +1560,193 @@
         });
     }
 
+
+    /* ================= SAISONS HEBDOMADAIRES & LIGUES ================= */
+    const seasonId = () => Math.floor((Date.now() - SEASON_EPOCH) / WEEK_MS) + 1;
+    const seasonEndsAt = id => SEASON_EPOCH + id * WEEK_MS;
+    const seasonKey = id => 'CRYPTO_S' + id;
+    // Remet le portefeuille à zéro (nouvelle saison ou Halving) ; la carrière est conservée.
+    function resetRun() {
+        state.cash = startCash(); state.holdings = {}; state.luxury = {}; state.businesses = [];
+        state.mining = freshMining(); state.stakes = []; state.lev = []; state.runPeak = state.cash;
+    }
+    function checkSeason() {
+        const cur = seasonId();
+        // 1er lancement de la v6 : la partie en cours compte pour la saison actuelle (pas de remise à zéro)
+        if (!state.season) { state.season = { id: cur, peak: Math.max(START_CASH, netWorth()) }; return; }
+        if (state.season.id !== cur) endSeason(state.season, cur);
+    }
+    // Fin de saison : promotion / maintien / relégation selon la fortune record de la saison,
+    // Satoshis de ligue, puis nouveau portefeuille. (Plusieurs semaines d'absence = une seule fin de saison.)
+    function endSeason(old, cur) {
+        const c = state.career, L = c.league || 0, lg = LEAGUES[L], peak = old.peak || 0;
+        let next = L, result = 'maintien';
+        if (peak >= lg.promo && L < LEAGUES.length - 1) { next = L + 1; result = 'promotion'; }
+        else if (peak < lg.keep && L > 0) { next = L - 1; result = 'relégation'; }
+        const sats = LEAGUES[next].sats + (result === 'promotion' ? 1 : 0);
+        c.league = next; c.sats += sats;
+        const rec = { id: old.id, peak, from: L, league: next, result, sats, podium: null };
+        c.seasons.push(rec);
+        if (c.seasons.length > 30) c.seasons.shift();
+        resetRun();
+        state.season = { id: cur, peak: state.cash };
+        const nl = LEAGUES[next];
+        celebrate(`🏁 Fin de la saison ${old.id} : ${result === 'promotion' ? '⏫ promotion' : result === 'relégation' ? '⏬ relégation' : '➡️ maintien'} en ligue ${nl.emoji} ${nl.name}${sats ? ` · +${sats} Satoshi${sats > 1 ? 's' : ''}` : ''}. Nouvelle saison : ton portefeuille repart à ${fmtMoney(state.cash)} !`, 'rank');
+        if (result === 'promotion') unlock('season_promo');
+        checkPodium(rec);
+        checkAchievements();
+        refreshLuxury(); refreshBusiness(); refreshYield(); refreshLev(); refreshPortfolio(); refreshTradePanel(); refreshHeader();
+        save();
+    }
+    // Podium : lit le classement final de la saison passée (même pseudo que celui du hub).
+    function checkPodium(rec) {
+        if (!db || player === 'Invité') return;
+        db.ref(FIREBASE_PATH_SEASON(rec.id)).once('value', snap => {
+            const rows = [];
+            snap.forEach(ch => { const v = ch.val() || {}; if (v.name) rows.push({ name: String(v.name), score: +v.score || 0 }); });
+            rows.sort((a, b) => b.score - a.score);
+            const pos = rows.findIndex(r => r.name.toLowerCase() === player.toLowerCase());
+            if (pos < 0 || pos > 2) return;
+            rec.podium = pos + 1;
+            state.career.sats += PODIUM_SATS[pos];
+            celebrate(`🏅 Podium de la saison ${rec.id} : ${pos + 1}${pos ? 'e' : 'er'} ! +${PODIUM_SATS[pos]} Satoshis`, 'rank');
+            unlock('season_top3');
+            save();
+        }, () => {});
+    }
+    const FIREBASE_PATH_SEASON = id => `games/${seasonKey(id)}/scores`;
+    let boardCache = null, boardAt = 0;
+    function loadSeasonBoard(force) {
+        if (!db) { boardCache = null; return renderSeasonBoard(); }
+        if (!force && Date.now() - boardAt < 30000) return renderSeasonBoard();
+        boardAt = Date.now();
+        db.ref(FIREBASE_PATH_SEASON(state.season.id)).orderByChild('score').limitToLast(20).once('value', snap => {
+            const rows = [];
+            snap.forEach(ch => { const v = ch.val() || {}; if (v.name) rows.push({ name: String(v.name), score: +v.score || 0 }); });
+            boardCache = rows.sort((a, b) => b.score - a.score);
+            renderSeasonBoard();
+        }, () => { boardCache = null; renderSeasonBoard(); });
+    }
+    function renderSeasonBoard() {
+        const box = el('seasonBoard');
+        if (!db || player === 'Invité') { box.innerHTML = '<div class="stake-empty">Connecte-toi au hub Joxia pour apparaître dans le classement de la saison.</div>'; return; }
+        if (!boardCache) { box.innerHTML = '<div class="stake-empty">Chargement du classement…</div>'; return; }
+        if (!boardCache.length) { box.innerHTML = '<div class="stake-empty">Personne n\'est encore classé cette saison : à toi de jouer !</div>'; return; }
+        box.innerHTML = boardCache.map((r, i) => `<div class="sb-row${r.name.toLowerCase() === player.toLowerCase() ? ' me' : ''}">
+            <span class="sb-pos">${i < 3 ? ['🥇', '🥈', '🥉'][i] : i + 1}</span><span class="sb-name">${escapeHtml(r.name)}</span><b>${fmtMoney(r.score)}</b></div>`).join('');
+    }
+
+    /* ================= MISSIONS DU JOUR ================= */
+    const dayKey = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    const todayKey = () => dayKey(new Date());
+    const yesterdayKey = () => dayKey(new Date(Date.now() - 86400000));
+    // Générateur pseudo-aléatoire déterministe : même tirage de missions pour tous les joueurs ce jour-là.
+    function seededRand(seed) {
+        let h = 2166136261;
+        for (const ch of seed) h = Math.imul(h ^ ch.charCodeAt(0), 16777619);
+        return () => { h = Math.imul(h ^ (h >>> 15), 2246822507); h = Math.imul(h ^ (h >>> 13), 3266489909); h ^= h >>> 16; return (h >>> 0) / 4294967296; };
+    }
+    const missionTier = () => { const L = state.career.level; return L < 10 ? 0 : L < 25 ? 1 : L < 45 ? 2 : 3; };
+    function newDaily(date) {
+        const rnd = seededRand('joxia-crypto-' + date), pool = MISSIONS.slice(), picked = [];
+        for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
+        for (const m of pool) {
+            if (picked.length >= 3) break;
+            if (state.career.level < m.lvl || (m.ok && !m.ok())) continue;
+            const target = m.t ? m.t[missionTier()] : Math.max(50, Math.round(netWorth() * 2));
+            picked.push({ id: m.id, key: m.key, target, done: false });
+        }
+        return { date, missions: picked, counts: {}, bonus: false };
+    }
+    function checkDaily() {
+        const d = todayKey();
+        if (state.daily && state.daily.date === d) return;
+        state.daily = newDaily(d);
+        if (activeView === 'season') refreshSeason();
+        refreshMissionBadge();
+    }
+    const missionText = m => MISSIONS.find(x => x.id === m.id).txt(m.target);
+    function dailyAdd(key, n) {
+        const D = state.daily;
+        if (!D || !(n > 0)) return;
+        D.counts[key] = (D.counts[key] || 0) + n;
+        evalMissions();
+    }
+    function dailyMax(key, v) {
+        const D = state.daily;
+        if (!D || !(v > (D.counts[key] || 0))) return;
+        D.counts[key] = v;
+        evalMissions();
+    }
+    function evalMissions() {
+        const D = state.daily, c = state.career;
+        let changed = false;
+        for (const m of D.missions) {
+            if (m.done || (D.counts[m.key] || 0) < m.target) continue;
+            m.done = true; changed = true;
+            c.stats.missions++;
+            const xp = 150 * (1 + missionTier()), cash = Math.max(20, netWorth() * 0.02);
+            state.cash += cash;
+            celebrate(`📋 Mission accomplie : ${missionText(m)} (+${xp} XP, +${fmtMoney(cash)})`, 'ach');
+            gainXp(xp);
+        }
+        if (!D.bonus && D.missions.length && D.missions.every(m => m.done)) {
+            D.bonus = true;
+            c.sats += 1;
+            c.dailyStreak = c.lastAllDone === yesterdayKey() ? c.dailyStreak + 1 : 1;
+            c.lastAllDone = D.date;
+            c.dailyBest = Math.max(c.dailyBest, c.dailyStreak);
+            celebrate(`🎁 Les 3 missions du jour sont faites : +1 Satoshi ! Série : ${c.dailyStreak} jour${c.dailyStreak > 1 ? 's' : ''}`, 'rank');
+            changed = true;
+        }
+        if (changed) { checkAchievements(); refreshMissionBadge(); if (activeView === 'season') refreshSeason(); save(); }
+    }
+    function refreshMissionBadge() {
+        const D = state.daily;
+        el('missionCount').textContent = D ? `${D.missions.filter(m => m.done).length}/${D.missions.length}` : '';
+    }
+
+    /* ================= ONGLET SAISON ================= */
+    function refreshSeason() {
+        const c = state.career, L = c.league || 0, lg = LEAGUES[L], peak = state.season.peak;
+        const left = Math.max(0, seasonEndsAt(state.season.id) - Date.now()) / 1000;
+        const bar = (v, target) => target === Infinity ? 100 : Math.min(100, target > 0 ? v / target * 100 : 100);
+        const keepOk = peak >= lg.keep, promoOk = peak >= lg.promo;
+        el('seasonHero').innerHTML = `
+            <div class="sh-top">
+                <div><div class="sh-title">Saison ${state.season.id}</div><div class="sh-sub">Fin dans ${humanizeLong(left)} · nouveau portefeuille chaque lundi</div></div>
+                <div class="sh-league">${lg.emoji}<span>Ligue ${lg.name}</span></div>
+            </div>
+            <div class="sh-peak">Fortune record de la saison : <b>${fmtMoney(peak)}</b></div>
+            ${L > 0 ? `<div class="sh-goal ${keepOk ? 'ok' : ''}"><span>${keepOk ? '✅' : '⚠️'} Maintien : ${fmtMoney(lg.keep)}</span><i><b style="width:${bar(peak, lg.keep)}%"></b></i></div>` : ''}
+            ${lg.promo !== Infinity ? `<div class="sh-goal ${promoOk ? 'ok' : ''}"><span>${promoOk ? '✅' : '⏫'} Promotion en ${LEAGUES[L + 1].emoji} ${LEAGUES[L + 1].name} : ${fmtMoney(lg.promo)}</span><i><b style="width:${bar(peak, lg.promo)}%"></b></i></div>`
+                                    : '<div class="sh-goal ok"><span>👑 Ligue maximale : reste au-dessus du maintien.</span></div>'}
+            <div class="sh-rewards">Récompense de fin de saison : <b>${LEAGUES[promoOk && L < LEAGUES.length - 1 ? L + 1 : (!keepOk && L > 0 ? L - 1 : L)].sats + (promoOk && L < LEAGUES.length - 1 ? 1 : 0)} Satoshis</b> (selon la ligue finale) · podium : +5 / +3 / +2</div>
+            <p class="sh-note">À la fin de la saison, ton liquide, tes actifs, tes business, ton luxe, ton minage et tes positions repartent de zéro. Niveau, rang, succès et Satoshis sont conservés.</p>`;
+
+        const D = state.daily;
+        el('missionGrid').innerHTML = D && D.missions.length ? D.missions.map(m => {
+            const v = Math.min(D.counts[m.key] || 0, m.target), pct = Math.round(v / m.target * 100);
+            const shown = m.key === 'playSec' ? `${Math.floor(v / 60)} / ${m.target / 60} min` : m.key === 'volume' ? `${fmtMoney(v)} / ${fmtMoney(m.target)}` : m.key === 'bigWin' ? `${v.toFixed(1)} % / ${m.target} %` : `${Math.floor(v)} / ${m.target}`;
+            return `<div class="mission ${m.done ? 'done' : ''}"><div class="ms-text">${m.done ? '✅' : '🎯'} ${escapeHtml(missionText(m))}</div>
+                <i class="ms-bar"><b style="width:${pct}%"></b></i><div class="ms-meta"><span>${shown}</span><em>+${150 * (1 + missionTier())} XP · +2 % de fortune</em></div></div>`;
+        }).join('') + `<div class="mission bonus ${D.bonus ? 'done' : ''}"><div class="ms-text">${D.bonus ? '✅' : '🎁'} Bonus : les 3 missions → +1 Satoshi</div><div class="ms-meta"><span>Série actuelle : ${c.dailyStreak} jour(s) · record ${c.dailyBest}</span></div></div>`
+            : '<div class="stake-empty">Aucune mission disponible aujourd\'hui.</div>';
+        const midnight = new Date(); midnight.setHours(24, 0, 0, 0);
+        el('dailyReset').textContent = `· nouvelles missions dans ${humanizeLong((midnight - Date.now()) / 1000)}`;
+
+        el('seasonHistory').innerHTML = c.seasons.length ? c.seasons.slice().reverse().map(r => {
+            const lg2 = LEAGUES[r.league];
+            return `<div class="stake-row"><span>Saison ${r.id} · ${r.result === 'promotion' ? '⏫' : r.result === 'relégation' ? '⏬' : '➡️'} ${lg2.emoji} ${lg2.name}${r.podium ? ` · 🏅 ${r.podium}${r.podium > 1 ? 'e' : 'er'}` : ''}</span><span>${fmtMoney(r.peak)}</span><em>+${r.sats + (r.podium ? PODIUM_SATS[r.podium - 1] : 0)} 🪙</em></div>`;
+        }).join('') : '<div class="stake-empty">Ta première saison est en cours.</div>';
+        loadSeasonBoard(false);
+    }
+    function humanizeLong(sec) {
+        sec = Math.max(0, Math.round(sec));
+        const d = Math.floor(sec / 86400), h = Math.floor(sec % 86400 / 3600), m = Math.floor(sec % 3600 / 60);
+        return d ? `${d} j ${h} h` : h ? `${h} h ${m} min` : `${m} min`;
+    }
+
     /* ================= SAUVEGARDE ================= */
     function save() {
         try {
@@ -1515,6 +1755,7 @@
                 luxury: state.luxury, businesses: state.businesses,
                 gameTime: state.gameTime, career: state.career, coins: {},
                 runPeak: state.runPeak, mining: state.mining, stakes: state.stakes, lev: state.lev,
+                season: state.season, daily: state.daily,
             };
             for (const id in coins) {
                 const c = coins[id];
@@ -1538,6 +1779,8 @@
             state.mining = Object.assign(freshMining(), d.mining || {});
             state.stakes = d.stakes || [];
             state.lev = d.lev || [];
+            state.season = d.season || null;
+            state.daily = d.daily || null;
             for (const id in d.coins) {
                 const c = coins[id]; if (!c) continue;
                 const s = d.coins[id];
@@ -1588,14 +1831,17 @@
     }
     function saveScore() {
         if (!db || player === 'Invité') return;
-        // score = fortune record (ne baisse pas lors d'un krach)
-        const score = Math.round(Math.max(state.career.peakNW, netWorth()));
+        // carrière : fortune record (ne baisse pas lors d'un krach) ; saison : fortune record de la saison
+        writeBest(FIREBASE_PATH, Math.round(Math.max(state.career.peakNW, netWorth())));
+        if (state.season) writeBest(FIREBASE_PATH_SEASON(state.season.id), Math.round(state.season.peak));
+    }
+    function writeBest(path, score) {
         if (score <= 0) return;
-        db.ref(FIREBASE_PATH).orderByChild('name').equalTo(player).once('value', snap => {
+        db.ref(path).orderByChild('name').equalTo(player).once('value', snap => {
             let key = null, old = 0;
             snap.forEach(ch => { key = ch.key; old = ch.val().score || 0; });
-            if (key && score > old) db.ref(FIREBASE_PATH + '/' + key).update({ score: score, date: Date.now() });
-            else if (!key) db.ref(FIREBASE_PATH).push({ name: player, score: score, date: Date.now() });
+            if (key && score > old) db.ref(path + '/' + key).update({ score: score, date: Date.now() });
+            else if (!key) db.ref(path).push({ name: player, score: score, date: Date.now() });
         }, () => {});
     }
 
@@ -1618,6 +1864,8 @@
         const nw = netWorth();
         if (nw > state.career.peakNW) state.career.peakNW = nw;
         if (nw > state.runPeak) state.runPeak = nw;
+        if (state.season && nw > state.season.peak) state.season.peak = nw;
+        dailyAdd('playSec', dt);
         refreshHeader(); refreshAssetList(); refreshTradePanel(); refreshPortfolio(); drawChart();
         if (state.lev.length) refreshLev();
         if (activeView === 'yield') refreshYield();
@@ -1663,6 +1911,7 @@
                 if (t.dataset.view === 'business') refreshBusiness();
                 if (t.dataset.view === 'progress') refreshProgress();
                 if (t.dataset.view === 'yield') refreshYield();
+                if (t.dataset.view === 'season') refreshSeason();
             };
         });
         el('rankBadge').onclick = el('levelChip').onclick = () => document.querySelector('.tab[data-view="progress"]').click();
@@ -1757,8 +2006,13 @@
             celebrate(`🆕 Nouvelle version : tout le monde repart de 10 €. Badge Pionnier (ancien rang ${pi.emoji} ${pi.name}) !`, 'rank');
             save();
         }
+        checkSeason();
+        checkDaily();
+        refreshMissionBadge();
         checkAchievements();
         setInterval(checkAchievements, 2000);
+        // changement de saison (lundi) et de jour (missions) pendant que le jeu est ouvert
+        setInterval(() => { checkSeason(); checkDaily(); if (activeView === 'season') refreshSeason(); }, 10000);
         setInterval(save, 15000);
         setInterval(saveScore, 30000);
         window.addEventListener('beforeunload', () => { save(); saveScore(); });

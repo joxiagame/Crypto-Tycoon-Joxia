@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=5">
+    <link rel="stylesheet" href="style.css?v=6">
 </head>
 <body>
 <a href="https://joxiagame.github.io/Joxia-Games/" id="joxia-quit" style="position:fixed;top:8px;left:8px;z-index:2147483647;display:flex;align-items:center;gap:6px;background:rgba(20,22,30,.86);color:#fff;border:1px solid rgba(255,255,255,.3);border-radius:10px;padding:7px 11px;font:700 13px system-ui,-apple-system,sans-serif;text-decoration:none;box-shadow:0 3px 12px rgba(0,0,0,.45);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)">🏠 Quitter</a>
@@ -53,6 +53,7 @@
         <button class="tab" data-view="achats">🛍️ Achats <span class="tab-badge" id="ownedCount">0</span></button>
         <button class="tab" data-view="business">💼 Business <span class="tab-badge" id="businessCount">0</span></button>
         <button class="tab" data-view="yield">⛏️ Rendement</button>
+        <button class="tab" data-view="season">🏟️ Saison <span class="tab-badge" id="missionCount"></span></button>
         <button class="tab" data-view="progress">🏆 Progression <span class="tab-badge" id="achCount">0</span></button>
     </nav>
 
@@ -228,6 +229,17 @@
             <div class="shop-grid" id="myBizGrid"></div>
         </section>
 
+        <!-- ===== VUE SAISON (ligues, missions du jour, classement hebdo) ===== -->
+        <section id="view-season" class="view">
+            <div class="yield-card season-hero" id="seasonHero"></div>
+            <h2 class="section-sub">📋 Missions du jour <span class="lock-tag" id="dailyReset"></span></h2>
+            <div class="mission-grid" id="missionGrid"></div>
+            <h2 class="section-sub">🏆 Classement de la saison</h2>
+            <div class="yield-card"><div class="season-board" id="seasonBoard"></div></div>
+            <h2 class="section-sub">🗓️ Tes saisons</h2>
+            <div class="stake-list" id="seasonHistory"></div>
+        </section>
+
         <!-- ===== VUE PROGRESSION (niveau, rangs, succès) ===== -->
         <section id="view-progress" class="view">
             <div class="prog-hero">
@@ -291,7 +303,7 @@
     <!-- Firebase (classement hub) -->
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
-    <script src="script.js?v=5"></script>
+    <script src="script.js?v=6"></script>
 <script type="module" src="https://joxiagame.github.io/Joxia-Games/tracker.js?game=CRYPTO"></script>
 </body>
 </html>
